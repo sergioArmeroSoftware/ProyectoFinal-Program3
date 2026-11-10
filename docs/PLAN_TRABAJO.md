@@ -8,8 +8,10 @@
 
 ## Alcance acordado
 
+El trabajo del equipo debe seguir las [especificaciones comunes de desarrollo](ESPECIFICACIONES_DESARROLLO.md) y los [contratos de integración](CONTRATOS_INTEGRACION.md). La guía del curso está enlazada allí para consulta común.
+
 - Sistema de coordinación de emergencias en Elixir.
-- Interfaz gráfica web con Phoenix LiveView como decisión del grupo. El PDF ofrece Phoenix como opción; el grupo decidió incluir interfaz.
+- Interfaz gráfica web con Phoenix LiveView. La interfaz forma parte del alcance del grupo; Phoenix se adopta como la opción de implementación en Elixir.
 - Persistencia principal en archivos de texto. No se usará MySQL: no es requisito del checklist y añadirlo no mejora el cumplimiento de persistencia textual.
 - Arquitectura propuesta con un nodo web y un nodo coordinador. El coordinador es el único dueño del estado persistente; las mutaciones remotas pasan por la API del sistema.
 - Uso de `|>` en cadenas legibles de transformación. Para flujos con `{:ok, dato}` / `{:error, motivo}`, usar `with` o `case` cuando deje más claro el manejo de fallos.
@@ -32,28 +34,37 @@ Antes de desarrollar las vistas y módulos en paralelo, los tres acuerdan: struc
 
 ### Ola 0 - Contratos
 
-- [ ] Confirmar firmas públicas y estructuras de datos compartidas.
-- [ ] Definir roles y matriz de permisos.
-- [ ] Definir estados y transiciones de necesidades, personas, mascotas, mensajes y albergues.
-- [ ] Acordar el formato de los archivos de texto y estrategia de carga inicial.
-- [ ] Definir nombres de nodos, API remota y flujo de inicio.
+- [x] Revisar y cerrar `docs/CONTRATOS_INTEGRACION.md` con los acuerdos confirmados.
+- [x] Registrar como acuerdos los roles, transiciones y formato de persistencia confirmados.
+- [x] Definir firmas públicas y estructuras de datos compartidas en `docs/CONTRATOS_INTEGRACION.md`.
+- [x] Aprobar matriz de permisos y alta automática como ciudadano.
+- [x] Acordar estados y transiciones de necesidades, personas, mascotas y mensajes.
+- [x] Acordar snapshot JSON con Jason; si falta el archivo, iniciar con estado vacío.
+- [x] Definir nombres de nodos, API remota y flujo de inicio.
 
 ### Ola 1 - Esqueleto Mix y supervisión
 
-- [ ] Crear el proyecto Mix y separar `lib/`, `test/`, `priv/` o `data/` y `docs/`.
-- [ ] Crear la aplicación OTP y el árbol Supervisor.
-- [ ] Definir la estructura de estado en mapas indexados por identificador.
-- [ ] Definir el contrato de Persistencia y carga del estado.
-- [ ] Crear el esqueleto Phoenix LiveView y navegación por módulos.
+- [x] Crear el proyecto Mix y separar `lib/`, `priv/` y `docs/` (Phoenix LiveView).
+- [x] Crear la aplicación OTP y el árbol Supervisor inicial.
+- [x] Definir la estructura de estado en mapas indexados por identificador.
+- [x] Definir el contrato documental de Persistencia y carga del estado; falta implementar el módulo.
+- [x] Crear el esqueleto Phoenix LiveView y navegación por módulos.
+- [x] Adelantar por prioridad el dominio de Sergio: usuarios/permisos, zonas/sectores/puntos, albergues y cuatro recorridos recursivos.
+- [ ] Completar operaciones de dominio conectadas al coordinador, autenticación y formularios interactivos.
+- [ ] Implementar persistencia JSON y recuperación del snapshot.
 
 ### Ola 2 - Dominios
 
-- [ ] Sergio: usuarios, roles, zonas, sectores, puntos y albergues.
-- [ ] Sergio: cuatro recorridos recursivos con propósito claro sobre la jerarquía territorial.
+- [x] Sergio: reglas puras de usuarios, roles, zonas, sectores, puntos y albergues.
+- [x] Sergio: hash de contraseñas, sesiones, comprobación de permisos y cuatro recorridos recursivos.
+- [ ] Sergio: integrar comandos, formularios LiveView y control de sesión cuando el coordinador atienda las solicitudes de API.
+- [ ] Sergio: coordinar ingresos/salidas con la persona e historial de Maria.
 - [ ] Maria Fernanda: personas, mensajes familiares, cambios de estado y mascotas.
 - [ ] Maria Fernanda: función de similitud y registro de coincidencia confirmada.
 - [ ] Cristian: necesidades, prioridades, recursos, asignaciones, movimientos y transferencias.
 - [ ] Cada responsable: validar antes de cambiar estado; devolver resultados explícitos.
+
+El detalle de este avance y las interfaces requeridas a los otros módulos está en `docs/OLA2_SERGIO.md`.
 
 ### Ola 3 - Persistencia e interfaz
 
