@@ -1,0 +1,67 @@
+<mxfile host="65bd71144e">
+    <diagram id="f6a14c3e3e3f" name="Arquitectura de módulos">
+        <mxGraphModel dx="1101" dy="1123" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1580" pageHeight="930" math="0" shadow="0" adaptiveColors="auto">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontColor=#17324d;" value="&lt;b&gt;Arquitectura de módulos · Sistema de emergencias&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;Propuesta lógica: interfaz web separada de un coordinador con estado y persistencia textual&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="55" width="1480" x="40" y="18" as="geometry"/>
+                </mxCell>
+                <mxCell id="web_bg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eaf3f8;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=top;align=left;spacing=14;fontSize=16;fontColor=#17324d;" value="&lt;b&gt;NODO WEB&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Phoenix LiveView · procesos de sesión concurrentes&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="760" width="430" x="40" y="95" as="geometry"/>
+                </mxCell>
+                <mxCell id="core_bg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f4f7ee;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;align=left;spacing=14;fontSize=16;fontColor=#274e13;" value="&lt;b&gt;NODO COORDINADOR&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;Único dueño del estado persistente&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="760" width="1210" x="510" y="85" as="geometry"/>
+                </mxCell>
+                <mxCell id="users" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;strokeWidth=2;align=center;verticalAlign=middle;fontSize=15;fontColor=#1f2937;spacing=9;" value="&lt;b&gt;Usuarios&lt;/b&gt;&lt;br&gt;formularios y consultas" vertex="1">
+                    <mxGeometry height="70" width="310" x="100" y="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="live" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;strokeWidth=2;align=center;verticalAlign=middle;fontSize=15;fontColor=#1f2937;spacing=9;" value="&lt;b&gt;EmergenciasWeb.Live&lt;/b&gt;&lt;br&gt;vistas por dominio&lt;br&gt;sesiones atendidas concurrentemente" vertex="1">
+                    <mxGeometry height="110" width="310" x="100" y="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="facade" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;strokeWidth=2;align=center;verticalAlign=middle;fontSize=15;fontColor=#1f2937;spacing=9;" value="&lt;b&gt;Emergencias.API&lt;/b&gt;&lt;br&gt;valida sesión y convierte eventos&lt;br&gt;en solicitudes de dominio" vertex="1">
+                    <mxGeometry height="110" width="310" x="100" y="485" as="geometry"/>
+                </mxCell>
+                <mxCell id="sup" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;align=center;verticalAlign=middle;fontSize=15;fontColor=#274e13;spacing=9;" value="&lt;b&gt;Emergencias.Supervisor&lt;/b&gt;&lt;br&gt;inicia y vigila procesos de aplicación" vertex="1">
+                    <mxGeometry height="80" width="350" x="670" y="165" as="geometry"/>
+                </mxCell>
+                <mxCell id="store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;align=center;verticalAlign=middle;fontSize=15;fontColor=#274e13;spacing=9;" value="&lt;b&gt;Emergencias.EstadoServidor&lt;/b&gt;&lt;br&gt;GenServer · estado compartido&lt;br&gt;serializa operaciones que cambian inventario y necesidades" vertex="1">
+                    <mxGeometry height="135" width="390" x="650" y="315" as="geometry"/>
+                </mxCell>
+                <mxCell id="domains" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;align=center;verticalAlign=middle;fontSize=14;fontColor=#7f6000;spacing=10;" value="&lt;b&gt;Módulos de dominio puros&lt;/b&gt;&lt;br&gt;Usuarios · Zonas · Albergues&lt;br&gt;Necesidades · Recursos&lt;br&gt;Personas · Mensajes · Mascotas · Reportes&lt;br&gt;validación → {:ok, estado} / {:error, motivo}" vertex="1">
+                    <mxGeometry height="220" width="340" x="1300" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="persist" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce5cd;strokeColor=#d79b00;strokeWidth=2;align=center;verticalAlign=middle;fontSize=14;fontColor=#783f04;spacing=10;" value="&lt;b&gt;Emergencias.Persistencia&lt;/b&gt;&lt;br&gt;lectura / escritura de texto&lt;br&gt;solo después de validar el cambio" vertex="1">
+                    <mxGeometry height="110" width="340" x="1310" y="620" as="geometry"/>
+                </mxCell>
+                <mxCell id="files" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#fce5cd;strokeColor=#d79b00;strokeWidth=2;align=center;verticalAlign=middle;fontSize=14;fontColor=#783f04;" value="&lt;b&gt;archivos/&lt;/b&gt;&lt;br&gt;registros y movimientos&lt;br&gt;esquema de texto documentado" vertex="1">
+                    <mxGeometry height="100" width="330" x="700" y="625" as="geometry"/>
+                </mxCell>
+                <mxCell id="note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;align=center;verticalAlign=middle;fontSize=13;fontColor=#333333;spacing=8;" value="&lt;b&gt;Regla de integridad&lt;/b&gt;&lt;br&gt;Las vistas no escriben archivos ni alteran el estado directamente.&lt;br&gt;Una sola llamada coordinada decide, persiste y confirma cada mutación." vertex="1">
+                    <mxGeometry height="65" width="820" x="650" y="760" as="geometry"/>
+                </mxCell>
+                <mxCell id="e1" edge="1" parent="1" source="users" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#526579;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="live" value="interacción">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e2" edge="1" parent="1" source="live" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#526579;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="facade" value="eventos">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e3" edge="1" parent="1" source="facade" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#526579;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="store" value="llamada remota :rpc">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e4" edge="1" parent="1" source="sup" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#526579;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="store" value="supervisa">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e5" edge="1" parent="1" source="store" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#526579;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="domains" value="aplica regla de dominio">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e6" edge="1" parent="1" source="store" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#526579;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="persist" value="guarda cambio válido">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e7" edge="1" parent="1" source="persist" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#526579;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="files" value="File / Path">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
