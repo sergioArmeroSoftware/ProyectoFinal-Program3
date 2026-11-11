@@ -66,7 +66,9 @@ Comandos de dominio iniciales, enviados como tuplas para mantener un contrato pe
 
 ```elixir
 {:registrar_necesidad, attrs}
+{:cambiar_estado_necesidad, necesidad_id, estado}
 {:registrar_recurso, attrs}
+{:ingresar_recurso, recurso_codigo, cantidad}
 {:asignar_recurso, necesidad_id, recurso_codigo, cantidad}
 {:transferir_recurso, recurso_codigo, origen, destino, cantidad}
 {:reportar_persona, attrs}
@@ -78,7 +80,19 @@ Comandos de dominio iniciales, enviados como tuplas para mantener un contrato pe
 {:registrar_salida_albergue, albergue_codigo, persona_id}
 ```
 
-Las consultas incluyen filtros por dominio, `:resumen` y `:recursos_criticos`. Los nombres definitivos se alinean con las vistas cuando se implemente cada módulo.
+Consultas de necesidades y recursos:
+
+```elixir
+Emergencias.API.consultar(session_id, {:necesidades, filtros})
+Emergencias.API.consultar(session_id, {:recursos, filtros})
+Emergencias.API.consultar(session_id, {:movimientos, filtros})
+Emergencias.API.consultar(session_id, {:recursos_criticos, filtros})
+Emergencias.API.consultar(session_id, :necesidades_pendientes)
+Emergencias.API.consultar(session_id, :recursos_criticos)
+Emergencias.API.consultar(session_id, :resumen)
+```
+
+Los filtros de necesidades aceptan `zona_codigo`, `tipo`, `prioridad` y `estado`; los de recursos aceptan `zona_codigo`, `categoria`, `ubicacion` y `codigo`. Los filtros de recursos críticos identifican existencias con cero unidades disponibles. Los movimientos se presentan del más reciente al más antiguo. Las consultas de personas no administradoras se limitan a su zona de sesión.
 
 El `GenServer` atiende una mutación completa en una sola llamada. Por ejemplo, asignar un recurso valida necesidad, recurso, cantidad, prioridad/estado y stock; si es válida crea la asignación, descuenta inventario, actualiza estado e historial como un solo cambio. Si la persistencia falla, responde error y conserva el estado anterior.
 
@@ -86,7 +100,7 @@ El `GenServer` atiende una mutación completa en una sola llamada. Por ejemplo, 
 
 Las operaciones de dominio devuelven `{:ok, resultado}` o `{:error, motivo}`. El motivo será un átomo o una tupla con datos útiles, nunca un texto usado para decidir lógica.
 
-Motivos compartidos propuestos: `:credenciales_invalidas`, `:no_autorizado`, `:no_encontrado`, `:id_duplicado`, `:cantidad_invalida`, `:stock_insuficiente`, `:capacidad_insuficiente`, `:transicion_invalida`, `:ya_resuelto`, `:coordinador_no_disponible`, `:error_persistencia`.
+Motivos compartidos propuestos: `:credenciales_invalidas`, `:no_autorizado`, `:no_encontrado`, `:id_duplicado`, `:cantidad_invalida`, `:stock_insuficiente`, `:capacidad_insuficiente`, `:zona_incompatible`, `:prioridad_invalida`, `:tipo_invalido`, `:estado_invalido`, `:origen_invalido`, `:destino_invalido`, `:transicion_invalida`, `:ya_resuelto`, `:dominio_no_disponible`, `:comando_no_reconocido`, `:consulta_no_reconocida`, `:coordinador_no_disponible`, `:error_persistencia`.
 
 Reglas invariantes: IDs únicos; cantidades y capacidades no negativas; ninguna asignación excede stock; ninguna estancia excede la capacidad; una necesidad atendida/resuelta no consume inventario otra vez; una coincidencia confirmada cierra los dos reportes una sola vez.
 
@@ -111,6 +125,7 @@ La implementación solicita contraseñas de al menos ocho caracteres y deriva `p
 | Dominio | Estados | Transiciones confirmadas |
 |---|---|---|
 | Necesidad | `:pendiente`, `:asignada`, `:en_atencion`, `:atendida`, `:cancelada` | `pendiente → asignada/cancelada`; `asignada → en_atencion/cancelada`; `en_atencion → atendida`; `atendida` y `cancelada` son finales. Cancelar una asignada libera el recurso en la misma mutación. |
+| Asignación de recurso | `:asignada`, `:en_atencion`, `:atendida`, `:cancelada` | Sigue el estado de su necesidad. Cancelar libera una asignación activa y registra la devolución en el historial de movimientos. |
 | Persona | `:sin_informacion`, `:reportada`, `:localizada`, `:trasladada`, `:en_albergue`, `:reunificada` | cambio explícito y registrado en historial; `:reunificada` final salvo corrección administrativa auditada. |
 | Reporte de mascota | `:activa`, `:posible_coincidencia`, `:resuelta` | activa → posible coincidencia/resuelta; posible coincidencia → activa/resuelta; resuelta final. Confirmar pareja marca ambos reportes resueltos en una mutación. |
 | Mensaje | `:pendiente`, `:entregado` | pendiente → entregado; entregado final. |
@@ -125,6 +140,8 @@ La implementación solicita contraseñas de al menos ocho caracteres y deriva `p
 - La mutación se confirma al usuario solo después de guardar correctamente. Una falla de lectura/escritura no debe borrar registros ni producir éxito aparente.
 - Solo el nodo coordinador escribe el archivo; el nodo web envía solicitudes remotas.
 - Jason se declara como dependencia de Mix. Antes de codificar/decodificar, el estado se convierte de structs a mapas JSON simples y se reconstruye al cargar.
+- Las sesiones nunca se serializan. Los cambios de inventario registran movimientos para el ingreso inicial, la asignación, la devolución por cancelación y las transferencias.
+- Una transferencia parcial separa el lote trasladado en un recurso con código generado por el coordinador; el registro original conserva la cantidad que permanece en el origen.
 
 ## 8. Distribución de decisiones de Ola 0
 

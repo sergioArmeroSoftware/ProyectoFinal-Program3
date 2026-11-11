@@ -3,23 +3,20 @@ defmodule Emergencias.API do
 
   @doc "Comprueba que el coordinador configurado responda."
   def ping do
-    server_ref()
-    |> GenServer.call(:ping, 2_000)
-    |> then(&{:ok, &1})
-  rescue
-    _error -> {:error, :coordinador_no_disponible}
-  catch
-    :exit, _reason -> {:error, :coordinador_no_disponible}
+    case call_genserver(:ping, 2_000) do
+      :pong -> {:ok, :pong}
+      {:error, motivo} -> {:error, motivo}
+      respuesta -> {:ok, respuesta}
+    end
   end
 
   @doc "Obtiene el estado compartido (uso interno mientras se construye el contrato)."
   def obtener_estado do
-    case GenServer.call(server_ref(), :obtener_estado, 2_000) do
+    case call_genserver(:obtener_estado, 2_000) do
       {:ok, estado} -> {:ok, estado}
+      {:error, motivo} -> {:error, motivo}
       _respuesta -> {:error, :respuesta_invalida}
     end
-  catch
-    :exit, _reason -> {:error, :coordinador_no_disponible}
   end
 
   @doc "Solicita alta de cuenta o autenticación de una existente."
@@ -35,11 +32,17 @@ defmodule Emergencias.API do
   def consultar(session_id, consulta), do: call({:consultar, session_id, consulta})
 
   defp call(solicitud) do
-    case GenServer.call(server_ref(), solicitud, 5_000) do
+    case call_genserver(solicitud, 5_000) do
       :ok -> :ok
       {:ok, _resultado} = respuesta -> respuesta
       {:error, _motivo} = error -> error
       respuesta -> {:ok, respuesta}
+    end
+  end
+
+  defp call_genserver(solicitud, timeout) do
+    with {:ok, server} <- server_ref() do
+      GenServer.call(server, solicitud, timeout)
     end
   rescue
     _error -> {:error, :coordinador_no_disponible}
@@ -49,8 +52,19 @@ defmodule Emergencias.API do
 
   defp server_ref do
     case Application.get_env(:emergencias, :node_role, :all) do
-      :web -> {Emergencias.EstadoServidor, Application.fetch_env!(:emergencias, :core_node)}
-      _role -> Emergencias.EstadoServidor
+      :web ->
+        case Application.get_env(:emergencias, :core_node) do
+          core_node when is_atom(core_node) ->
+            if Node.connect(core_node),
+              do: {:ok, {Emergencias.EstadoServidor, core_node}},
+              else: {:error, :coordinador_no_disponible}
+
+          _configuracion ->
+            {:error, :coordinador_no_disponible}
+        end
+
+      _role ->
+        {:ok, Emergencias.EstadoServidor}
     end
   end
 end
