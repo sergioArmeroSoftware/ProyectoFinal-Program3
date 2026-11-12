@@ -80,6 +80,27 @@ Comandos de dominio iniciales, enviados como tuplas para mantener un contrato pe
 {:registrar_salida_albergue, albergue_codigo, persona_id}
 ```
 
+Operaciones adicionales de personas aprobadas para la etapa 3:
+
+```elixir
+Emergencias.API.ejecutar(session_id, {:cambiar_estado_persona, persona_id, estado})
+Emergencias.API.consultar(session_id, {:personas, filtros})
+Emergencias.API.consultar(session_id, {:persona, persona_id})
+Emergencias.API.consultar(session_id, {:personas_por_documento, documento})
+Emergencias.API.consultar(session_id, {:historial_persona, persona_id})
+```
+
+Los filtros de personas aceptan `zona_codigo` y `estado`. Las búsquedas por documento
+devuelven una lista; las consultas por ID devuelven una persona. Los listados se
+ordenan por ID y el historial por fecha ascendente. Todas las respuestas usan
+`{:ok, resultado}` o `{:error, motivo}`. Las consultas se restringen a la zona
+de sesión salvo administración; un ID fuera del alcance devuelve `:no_encontrado`.
+La autoría ciudadana se verifica únicamente con un `RegistroActividad` de
+`:reportar_persona` cuyo `entidad_id` y `username` coincidan con persona y actor.
+El coordinador genera ese registro junto con el alta y lo persiste en la misma
+operación. Sin evidencia de autoría no se concede ese permiso. `:reunificada`
+permanece final en esta etapa; no se implementa corrección administrativa.
+
 Consultas de necesidades y recursos:
 
 ```elixir

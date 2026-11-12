@@ -11,6 +11,7 @@ defmodule Emergencias.EstadoServidor do
     Necesidades,
     MovimientoRecurso,
     Persistencia,
+    Personas,
     Recurso,
     Recursos,
     Sesiones,
@@ -159,7 +160,8 @@ defmodule Emergencias.EstadoServidor do
     with {:ok, %Recurso{} = recurso} <- Map.fetch(estado.recursos_por_codigo, recurso_codigo),
          :ok <- autorizar_zona(estado, session_id, :asignar_recursos, recurso.zona_codigo),
          {:ok, cantidad} <- cantidad_positiva(cantidad),
-         {:ok, recursos} <- Recursos.ingresar(estado.recursos_por_codigo, recurso_codigo, cantidad),
+         {:ok, recursos} <-
+           Recursos.ingresar(estado.recursos_por_codigo, recurso_codigo, cantidad),
          fecha <- ahora(),
          movimiento <-
            crear_movimiento(
@@ -180,7 +182,8 @@ defmodule Emergencias.EstadoServidor do
       nuevo_estado =
         registrar_actividad(nuevo_estado, actor.username, :ingresar_recurso, recurso_codigo)
 
-      {:ok, nuevo_estado, %{recurso: Map.fetch!(recursos, recurso_codigo), movimiento: movimiento}}
+      {:ok, nuevo_estado,
+       %{recurso: Map.fetch!(recursos, recurso_codigo), movimiento: movimiento}}
     else
       :error -> {:error, :no_encontrado}
       {:error, motivo} -> {:error, motivo}
@@ -197,7 +200,8 @@ defmodule Emergencias.EstadoServidor do
          :ok <- autorizar_zona(estado, session_id, :asignar_recursos, necesidad.zona_codigo),
          {:ok, %Recurso{} = recurso} <- Map.fetch(estado.recursos_por_codigo, recurso_codigo),
          :ok <- validar_asignacion(necesidad, recurso, estado.asignaciones_por_id, cantidad),
-         {:ok, recursos} <- Recursos.descontar(estado.recursos_por_codigo, recurso_codigo, cantidad),
+         {:ok, recursos} <-
+           Recursos.descontar(estado.recursos_por_codigo, recurso_codigo, cantidad),
          {:ok, necesidades} <- asignar_necesidad(estado.necesidades_por_id, necesidad),
          fecha <- ahora(),
          asignacion <-
@@ -303,7 +307,12 @@ defmodule Emergencias.EstadoServidor do
            ),
          actualizado <- %{estado_dominio | necesidades_por_id: necesidades},
          actualizado <-
-           registrar_actividad(actualizado, actor.username, :cambiar_estado_necesidad, necesidad_id) do
+           registrar_actividad(
+             actualizado,
+             actor.username,
+             :cambiar_estado_necesidad,
+             necesidad_id
+           ) do
       {:ok, actualizado, Map.fetch!(necesidades, necesidad_id)}
     else
       :error -> {:error, :no_encontrado}
@@ -493,6 +502,51 @@ defmodule Emergencias.EstadoServidor do
     end
   end
 
+  defp ejecutar_comando(estado, session_id, actor, {:reportar_persona, attrs})
+       when is_map(attrs) do
+    zona = valor(attrs, :zona_codigo) |> normalizar_texto()
+
+    with :ok <- autorizar_reporte(estado, session_id, actor, zona),
+         id <- nuevo_id("P", estado.personas_por_id),
+         {:ok, personas} <-
+           Personas.registrar(
+             estado.personas_por_id,
+             estado.zonas_por_codigo,
+             Map.put(attrs, :id, id)
+           ) do
+      actualizado = %{estado | personas_por_id: personas}
+      actualizado = registrar_actividad(actualizado, actor.username, :reportar_persona, id)
+      {:ok, actualizado, Map.fetch!(personas, id)}
+    end
+  end
+
+  defp ejecutar_comando(estado, session_id, actor, {:cambiar_estado_persona, id, nuevo_estado}) do
+    with {:ok, persona} <- persona_visible(estado, session_id, actor, id),
+         :ok <- autorizar_cambio_persona(estado, session_id, actor, persona),
+         contexto <- %{
+           id: nuevo_id("CP", Map.new(estado.historial_personas, &{&1.id, &1})),
+           fecha: ahora(),
+           usuario_id: actor.username
+         },
+         {:ok, resultado} <-
+           Personas.cambiar_estado(
+             estado.personas_por_id,
+             estado.historial_personas,
+             id,
+             nuevo_estado,
+             contexto
+           ) do
+      actualizado = %{
+        estado
+        | personas_por_id: resultado.personas,
+          historial_personas: resultado.historial
+      }
+
+      actualizado = registrar_actividad(actualizado, actor.username, :cambiar_estado_persona, id)
+      {:ok, actualizado, Map.fetch!(resultado.personas, id)}
+    end
+  end
+
   defp ejecutar_comando(_estado, _session_id, _actor, comando)
        when is_tuple(comando) and tuple_size(comando) > 0 and
               elem(comando, 0) in [
@@ -603,6 +657,27 @@ defmodule Emergencias.EstadoServidor do
     end
   end
 
+  defp consultar_estado(estado, session_id, actor, {:personas, filtros}) when is_map(filtros) do
+    with {:ok, filtros} <- filtros_por_zona(estado, session_id, actor, filtros) do
+      Personas.listar(estado.personas_por_id, filtros)
+    end
+  end
+
+  defp consultar_estado(estado, session_id, actor, {:persona, id}),
+    do: persona_visible(estado, session_id, actor, id)
+
+  defp consultar_estado(estado, session_id, actor, {:personas_por_documento, documento}) do
+    with {:ok, personas} <- consultar_estado(estado, session_id, actor, {:personas, %{}}) do
+      personas |> Map.new(&{&1.id, &1}) |> Personas.buscar_por_documento(documento)
+    end
+  end
+
+  defp consultar_estado(estado, session_id, actor, {:historial_persona, id}) do
+    with {:ok, _persona} <- persona_visible(estado, session_id, actor, id) do
+      Personas.historial(estado.historial_personas, id)
+    end
+  end
+
   defp consultar_estado(_estado, _session_id, _actor, _consulta),
     do: {:error, :consulta_no_reconocida}
 
@@ -619,6 +694,39 @@ defmodule Emergencias.EstadoServidor do
       end
     end
   end
+
+  defp persona_visible(estado, session_id, actor, id) do
+    with :ok <- autorizar_consulta(estado, session_id, actor),
+         {:ok, persona} <- Personas.obtener(estado.personas_por_id, id) do
+      if actor.rol == :administrador or
+           (is_binary(actor.zona_principal) and actor.zona_principal == persona.zona_codigo),
+         do: {:ok, persona},
+         else: {:error, :no_encontrado}
+    end
+  end
+
+  defp autorizar_cambio_persona(estado, session_id, %{rol: :ciudadano} = actor, persona) do
+    autor? =
+      Enum.any?(estado.actividad, fn
+        %Emergencias.RegistroActividad{
+          accion: :reportar_persona,
+          entidad_id: id,
+          username: username
+        } ->
+          id == persona.id and username == actor.username
+
+        _registro ->
+          false
+      end)
+
+    if autor? and
+         Sesiones.autorizado_en_zona?(estado, session_id, :reportar_en_zona, persona.zona_codigo),
+       do: :ok,
+       else: {:error, :no_autorizado}
+  end
+
+  defp autorizar_cambio_persona(estado, session_id, _actor, persona),
+    do: autorizar_zona(estado, session_id, :cambiar_estado_persona, persona.zona_codigo)
 
   defp autorizar_consulta(estado, session_id, %{rol: :administrador}) do
     if Sesiones.autorizado?(estado, session_id, :consultar_global),
@@ -701,7 +809,9 @@ defmodule Emergencias.EstadoServidor do
     asignaciones =
       estado.asignaciones_por_id
       |> Map.values()
-      |> Enum.filter(&(&1.necesidad_id == necesidad_id and &1.estado in [:asignada, :en_atencion]))
+      |> Enum.filter(
+        &(&1.necesidad_id == necesidad_id and &1.estado in [:asignada, :en_atencion])
+      )
 
     Enum.reduce_while(asignaciones, {:ok, estado}, fn asignacion, {:ok, acumulado} ->
       case Recursos.ingresar(
@@ -807,7 +917,9 @@ defmodule Emergencias.EstadoServidor do
   end
 
   defp filtrar_por_zona(valores, nil), do: valores
-  defp filtrar_por_zona(valores, zona), do: Enum.filter(valores, &(campo(&1, :zona_codigo) == zona))
+
+  defp filtrar_por_zona(valores, zona),
+    do: Enum.filter(valores, &(campo(&1, :zona_codigo) == zona))
 
   defp campo(%_{} = struct, campo), do: Map.get(struct, campo)
 
