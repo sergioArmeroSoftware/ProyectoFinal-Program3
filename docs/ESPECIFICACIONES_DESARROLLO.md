@@ -52,6 +52,10 @@ Preferir `with` cuando haya validaciones encadenadas que puedan fallar y `case` 
 
 El único escritor de `data/estado.json` es el nodo coordinador. Una mutación se valida completa, se intenta guardar el estado nuevo y solo entonces se confirma al solicitante. Ante error de persistencia se conserva el estado anterior. Las sesiones se mantienen en memoria y no se serializan.
 
+### Excepción temporal para el front en desarrollo
+
+Mientras los comandos del coordinador se completan, las pantallas de Sergio usan `EmergenciasWeb.Demo` con mapas y structs asignados al proceso LiveView. Esos datos de demostración no son compartidos entre pantallas, no se guardan en disco y se pierden al recargar o navegar. Las LiveViews solo llaman a ese adaptador; no implementan reglas de dominio. Al integrar, se reemplazan las llamadas del adaptador por `Emergencias.API`, se retiran los datos ficticios y los formularios usan el actor de la sesión real.
+
 ## 4. Estructuras, colecciones e identificadores
 
 - Las entidades compartidas se representan con structs y los nombres/campos se mantienen alineados con la tabla de [CONTRATOS_INTEGRACION.md](CONTRATOS_INTEGRACION.md).
@@ -59,6 +63,7 @@ El único escritor de `data/estado.json` es el nodo coordinador. Una mutación s
 - Usar listas para historiales cuya secuencia temporal tenga significado.
 - Mantener la jerarquía `Zona -> sectores -> puntos` anidada. No aplanarla sin actualizar primero el contrato y el diagrama.
 - Usar átomos para estados y roles internos; validar valores entrantes antes de construir structs. No convertir texto arbitrario del usuario con `String.to_atom/1`.
+- Mantener los códigos canónicos: zonas `Z-01`, sectores `SEC-01`, puntos `PA-01` y albergues `A-01` (prefijo en mayúscula, guion y exactamente dos dígitos). Validar al escribir en la interfaz y volver a validar en dominio; los identificadores de zona deben referenciar una zona existente.
 - IDs nuevos y marcas de tiempo se generan en la frontera coordinadora, no dentro de una función que deba ser pura.
 - No guardar contraseñas en texto plano. No exponer `password_hash` en los datos entregados a LiveView.
 
@@ -94,7 +99,10 @@ Cada recorrido debe mantener caso base y caso recursivo identificables, trabajar
 
 ## 7. Interfaz, seguridad y errores
 
-- Las vistas llaman únicamente a `Emergencias.API`; no asumen que una mutación fue exitosa hasta recibir respuesta.
+- Todas las pantallas operativas requieren una sesión válida. El registro público inicia con rol ciudadano; la cuenta administradora de desarrollo solo existe si se configura `EMERGENCIAS_DEMO_ADMIN_PASSWORD`.
+- La interfaz de demostración restringe administración al rol administrador y operaciones de albergue al permiso `gestionar_albergue` dentro de la zona asignada. Estas comprobaciones en LiveView son una protección del prototipo; al integrar el coordinador, cada comando debe validar nuevamente identidad, rol y zona en el servidor.
+- Las cuentas y sesiones de la interfaz de demostración están en memoria y se borran al reiniciar la app. No las describir como autenticación persistente.
+- En la versión integrada, las vistas llaman únicamente a `Emergencias.API`; no asumen que una mutación fue exitosa hasta recibir respuesta. El prototipo puede usar `DemoEstado` mientras se desarrolla la integración.
 - Mostrar estados de carga y mensajes comprensibles para errores funcionales; no presentar stack traces a usuarios.
 - La autorización se comprueba en el coordinador en cada comando, incluso si la vista oculta el botón. Validar tanto el rol como el alcance de zona.
 - La sesión identifica al actor; no se acepta `username`, rol o zona enviados desde el formulario como prueba de identidad.

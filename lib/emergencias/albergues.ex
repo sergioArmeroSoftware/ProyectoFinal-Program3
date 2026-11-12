@@ -1,6 +1,6 @@
 defmodule Emergencias.Albergues do
   @moduledoc "Cálculos de capacidad y ocupación a partir de estancias activas."
-  alias Emergencias.{Albergue, EstanciaAlbergue}
+  alias Emergencias.{Albergue, Codigos, EstanciaAlbergue}
 
   @doc "Registra un albergue cuando su zona existe y su capacidad es válida."
   def registrar(albergues, zonas, attrs)
@@ -13,6 +13,9 @@ defmodule Emergencias.Albergues do
     cond do
       is_nil(codigo) or is_nil(nombre) or is_nil(zona_codigo) ->
         {:error, :datos_incompletos}
+
+      not Codigos.valido?(:albergue, codigo) or not Codigos.valido?(:zona, zona_codigo) ->
+        {:error, :codigo_invalido}
 
       not Map.has_key?(zonas, zona_codigo) ->
         {:error, :zona_no_encontrada}

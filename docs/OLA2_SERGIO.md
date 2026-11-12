@@ -6,8 +6,11 @@
 - `Emergencias.Usuarios`: alta siempre como ciudadano, autenticación, desactivación, representación pública sin hash, control de permisos y cambio de rol protegido para administradores.
 - `Emergencias.Sesiones`: crear/cerrar sesiones, recuperar identidad y comprobar permisos generales y por zona sin mutar el estado original.
 - `Emergencias.Zonas`: validación y alta de zonas, sectores y puntos; cambio de estado de puntos; estadísticas y recorridos recursivos.
+- `Emergencias.Codigos`: formatos canónicos para zonas (`Z-01`), sectores (`SEC-01`), puntos (`PA-01`) y albergues (`A-01`).
 - `Emergencias.Albergues`: registro validado, disponibilidad, ocupación, entradas y salidas. La variante `registrar_ingreso/7` además valida que la persona esté en el mapa de personas.
 - `Emergencias.API`: fachada con las firmas de conexión, desconexión, ejecución y consulta acordadas en Ola 0.
+- `EmergenciasWeb.Demo` y LiveViews: prototipo funcional de registro/ingreso, administración de usuarios, zonas, sectores, puntos, capacidad de albergues e ingresos/salidas con datos temporales.
+- Validación en vivo de sintaxis para códigos ingresados; los códigos de zona existentes se eligen en listas desplegables y la capa de dominio también valida formatos.
 
 ## Recorridos recursivos requeridos
 
@@ -59,7 +62,8 @@ Para terminar ese acoplamiento, Maria debe entregar `%Emergencias.PersonaAfectad
 ## Pendiente para cerrar la parte de Sergio
 
 - Conectar las funciones de dominio a los mensajes reales del coordinador.
-- Crear formularios LiveView funcionales de registro/inicio de sesión, administración de usuarios, zonas/sectores/puntos y albergues.
+- Reemplazar el adaptador local `EmergenciasWeb.Demo` por llamadas reales a `Emergencias.API` en registro/inicio de sesión, administración de usuarios, zonas/sectores/puntos y albergues.
+- Retirar datos ficticios de demostración y consultar los registros del coordinador en las pantallas.
 - Proteger rutas y acciones por sesión, rol y zona.
 - Persistir sesiones solamente en memoria; guardar usuarios, territorio, albergues y estancias en el JSON del estado.
 - Completar la entrada/salida de albergue junto con el historial de personas.

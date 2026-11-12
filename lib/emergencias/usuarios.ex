@@ -1,6 +1,6 @@
 defmodule Emergencias.Usuarios do
   @moduledoc "Reglas de alta, permisos y administración básica de usuarios."
-  alias Emergencias.{Credenciales, RegistroActividad, Usuario}
+  alias Emergencias.{Codigos, Credenciales, RegistroActividad, Usuario}
 
   @roles [:ciudadano, :voluntario, :coordinador, :administrador]
 
@@ -135,8 +135,11 @@ defmodule Emergencias.Usuarios do
     zona = attrs |> valor(:zona_principal) |> normalizar_texto()
 
     cond do
-      is_nil(username) or is_nil(nombre) or not is_binary(password) ->
+      is_nil(username) or is_nil(nombre) or is_nil(zona) or not is_binary(password) ->
         {:error, :datos_incompletos}
+
+      not Codigos.valido?(:zona, zona) ->
+        {:error, :codigo_invalido}
 
       true ->
         with {:ok, password_hash} <- Credenciales.generar_hash(password) do

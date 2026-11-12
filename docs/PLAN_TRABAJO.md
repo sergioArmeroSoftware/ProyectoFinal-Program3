@@ -57,7 +57,8 @@ Antes de desarrollar las vistas y módulos en paralelo, los tres acuerdan: struc
 
 - [x] Sergio: reglas puras de usuarios, roles, zonas, sectores, puntos y albergues.
 - [x] Sergio: hash de contraseñas, sesiones, comprobación de permisos y cuatro recorridos recursivos.
-- [ ] Sergio: integrar comandos, formularios LiveView y control de sesión cuando el coordinador atienda las solicitudes de API.
+- [x] Sergio: prototipo LiveView con formularios y cambios temporales para usuarios, zonas y albergues.
+- [ ] Sergio: conectar las pantallas y el control de sesión a los comandos reales de API cuando el coordinador los atienda.
 - [ ] Sergio: coordinar ingresos/salidas con la persona e historial de Maria.
 - [ ] Maria Fernanda: personas, mensajes familiares, cambios de estado y mascotas.
 - [ ] Maria Fernanda: función de similitud y registro de coincidencia confirmada.
@@ -71,6 +72,7 @@ El detalle de este avance y las interfaces requeridas a los otros módulos está
 - [ ] Persistir y recuperar registros desde archivos de texto usando la API acordada.
 - [ ] Mantener efectos de archivo fuera de las funciones puras de dominio.
 - [ ] Implementar vistas LiveView por dominio, con llamadas a la API y sin acceso directo a archivos.
+- [x] Crear el primer prototipo de las vistas de Sergio; sus datos son temporales y deben migrarse a la API.
 - [ ] Mostrar errores funcionales en la interfaz sin detener la aplicación.
 
 ### Ola 4 - Concurrencia y distribución

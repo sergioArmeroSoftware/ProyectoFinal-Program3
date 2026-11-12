@@ -17,10 +17,21 @@ defmodule EmergenciasWeb.Router do
   scope "/", EmergenciasWeb do
     pipe_through :browser
 
-    live "/", PanelLive, :inicio
-    live "/usuarios", PanelLive, :usuarios
-    live "/zonas", PanelLive, :zonas
-    live "/albergues", PanelLive, :albergues
+    live_session :public, session: {EmergenciasWeb.LiveSession, :session, []} do
+      live "/acceso", AccesoLive, :acceso
+    end
+
+    post "/sesion", AuthController, :create
+    delete "/sesion", AuthController, :delete
+
+    live_session :authenticated,
+      session: {EmergenciasWeb.LiveSession, :session, []},
+      on_mount: [EmergenciasWeb.LiveAuth] do
+      live "/", PanelLive, :inicio
+      live "/usuarios", UsuariosLive, :usuarios
+      live "/zonas", ZonasLive, :zonas
+      live "/albergues", AlberguesLive, :albergues
+    end
   end
 
   # Other scopes may use custom stacks.

@@ -1,12 +1,21 @@
 defmodule Emergencias.Zonas do
   @moduledoc "Operaciones puras para zonas, sectores y puntos de atención."
-  alias Emergencias.{PuntoAtencion, Sector, Zona}
+  alias Emergencias.{Codigos, PuntoAtencion, Sector, Zona}
 
   @doc "Agrega una zona con código único."
   def registrar(zonas, %Zona{} = zona) when is_map(zonas) do
+    zona = %{
+      zona
+      | codigo: normalizar_texto(zona.codigo),
+        nombre: normalizar_texto(zona.nombre)
+    }
+
     cond do
       not texto_presente?(zona.codigo) or not texto_presente?(zona.nombre) ->
         {:error, :datos_incompletos}
+
+      not Codigos.valido?(:zona, zona.codigo) ->
+        {:error, :codigo_invalido}
 
       zona.nivel_afectacion not in [:baja, :media, :alta, :critica] ->
         {:error, :nivel_afectacion_invalido}
@@ -24,10 +33,16 @@ defmodule Emergencias.Zonas do
 
   @doc "Agrega un sector a una zona existente."
   def agregar_sector(zonas, zona_codigo, %Sector{codigo: codigo} = sector) do
-    actualizar_zona(zonas, zona_codigo, fn zona ->
+    sector = %{sector | codigo: normalizar_texto(codigo), nombre: normalizar_texto(sector.nombre)}
+    codigo = sector.codigo
+
+    actualizar_zona(zonas, normalizar_texto(zona_codigo), fn zona ->
       cond do
         not texto_presente?(codigo) or not texto_presente?(sector.nombre) ->
           {:error, :datos_incompletos}
+
+        not Codigos.valido?(:sector, codigo) ->
+          {:error, :codigo_invalido}
 
         buscar_sector(zona.sectores, codigo) ->
           {:error, :id_duplicado}
@@ -40,11 +55,16 @@ defmodule Emergencias.Zonas do
 
   @doc "Agrega un punto a un sector existente dentro de la zona."
   def agregar_punto(zonas, zona_codigo, sector_codigo, %PuntoAtencion{codigo: codigo} = punto) do
-    actualizar_zona(zonas, zona_codigo, fn zona ->
-      case actualizar_sector(zona.sectores, sector_codigo, fn sector ->
+    punto = %{punto | codigo: normalizar_texto(codigo), nombre: normalizar_texto(punto.nombre)}
+
+    actualizar_zona(zonas, normalizar_texto(zona_codigo), fn zona ->
+      case actualizar_sector(zona.sectores, normalizar_texto(sector_codigo), fn sector ->
              cond do
                not texto_presente?(codigo) or not texto_presente?(punto.nombre) ->
                  {:error, :datos_incompletos}
+
+               not Codigos.valido?(:punto_atencion, codigo) ->
+                 {:error, :codigo_invalido}
 
                buscar_punto(zona.sectores, codigo) ->
                  {:error, :id_duplicado}
@@ -68,9 +88,9 @@ defmodule Emergencias.Zonas do
   @doc "Cambia el estado de un punto y devuelve el mapa actualizado de zonas."
   def cambiar_estado_punto(zonas, zona_codigo, sector_codigo, punto_codigo, estado)
       when estado in [:activo, :inactivo, :saturado] do
-    actualizar_zona(zonas, zona_codigo, fn zona ->
-      case actualizar_sector(zona.sectores, sector_codigo, fn sector ->
-             case actualizar_punto(sector.puntos, punto_codigo, estado, []) do
+    actualizar_zona(zonas, normalizar_texto(zona_codigo), fn zona ->
+      case actualizar_sector(zona.sectores, normalizar_texto(sector_codigo), fn sector ->
+             case actualizar_punto(sector.puntos, normalizar_texto(punto_codigo), estado, []) do
                {:ok, puntos} -> {:ok, %{sector | puntos: puntos}}
                error -> error
              end
@@ -113,7 +133,9 @@ defmodule Emergencias.Zonas do
   defp contar_puntos_estado([_punto | resto], estado), do: contar_puntos_estado(resto, estado)
 
   @doc "Busca recursivamente un punto por código en una lista de sectores."
-  def buscar_punto(sectores, codigo), do: buscar_punto_en_sectores(sectores, codigo)
+  def buscar_punto(sectores, codigo),
+    do: buscar_punto_en_sectores(sectores, normalizar_texto(codigo))
+
   defp buscar_punto_en_sectores([], _codigo), do: nil
 
   defp buscar_punto_en_sectores([sector | resto], codigo) do
@@ -175,4 +197,6 @@ defmodule Emergencias.Zonas do
   defp buscar_sector([_sector | resto], codigo), do: buscar_sector(resto, codigo)
 
   defp texto_presente?(valor), do: is_binary(valor) and String.trim(valor) != ""
+  defp normalizar_texto(valor) when is_binary(valor), do: String.trim(valor)
+  defp normalizar_texto(_valor), do: nil
 end

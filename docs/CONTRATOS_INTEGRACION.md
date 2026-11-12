@@ -42,6 +42,8 @@ La jerarquía de zona, sector y punto de atención queda anidada como en el diag
 
 Para la primera implementación, los niveles de afectación de una zona son `:baja`, `:media`, `:alta` y `:critica`; los estados de punto de atención son `:activo`, `:inactivo` y `:saturado`. Capacidades y estimados aceptan cero, pero nunca valores negativos.
 
+Los códigos usan prefijos mayúsculos y dos dígitos: zona `Z-01`, sector `SEC-01`, punto de atención `PA-01` y albergue `A-01`. El formulario valida mientras se escribe y el módulo de dominio repite la validación al procesar el comando. Las referencias de zona se seleccionan de zonas existentes; nunca se aceptan como números aislados como `1`.
+
 ## 3. Interfaz pública entre LiveView y el coordinador
 
 LiveView llama a `Emergencias.API`; no accede directamente a los archivos ni modifica el estado.
