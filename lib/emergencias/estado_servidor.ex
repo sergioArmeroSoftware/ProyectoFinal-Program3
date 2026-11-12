@@ -640,6 +640,8 @@ defmodule Emergencias.EstadoServidor do
   defp ejecutar_comando(_estado, _session_id, _actor, _comando),
     do: {:error, :comando_no_reconocido}
 
+  defp consultar_estado(_estado, _session_id, actor, :sesion_actual), do: {:ok, actor}
+
   defp consultar_estado(estado, session_id, actor, {:necesidades, filtros})
        when is_map(filtros) do
     with {:ok, filtros} <- filtros_por_zona(estado, session_id, actor, filtros),

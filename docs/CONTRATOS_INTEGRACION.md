@@ -80,6 +80,20 @@ Comandos de dominio iniciales, enviados como tuplas para mantener un contrato pe
 {:registrar_salida_albergue, albergue_codigo, persona_id}
 ```
 
+Consulta de identidad aprobada para la etapa 6, fase B:
+
+```elixir
+Emergencias.API.consultar(session_id, :sesion_actual)
+# {:ok, usuario_publico} | {:error, :sesion_invalida}
+```
+
+Devuelve exclusivamente el usuario público de la sesión autenticada, con el formato
+existente de `Usuarios.usuario_publico/1`, sin `password_hash`. No acepta un username
+ni permite consultar otra identidad. Reutiliza la validación de sesión y cuenta activa
+del coordinador; no crea sesiones ni cambia las firmas de la API. Debe comunicarse
+a Sergio y Cristian junto con la ruta `/personas` y sus componentes visuales antes
+de integrar en la rama principal. La autenticación web sigue pendiente de Sergio.
+
 Operaciones adicionales de personas aprobadas para la etapa 3:
 
 ```elixir
