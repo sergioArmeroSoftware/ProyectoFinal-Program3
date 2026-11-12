@@ -101,6 +101,26 @@ El coordinador genera ese registro junto con el alta y lo persiste en la misma
 operación. Sin evidencia de autoría no se concede ese permiso. `:reunificada`
 permanece final en esta etapa; no se implementa corrección administrativa.
 
+Operaciones adicionales de mensajes aprobadas para la etapa 4:
+
+```elixir
+Emergencias.API.ejecutar(session_id, {:marcar_mensaje_entregado, mensaje_id})
+Emergencias.API.consultar(session_id, {:mensajes_familiares, filtros})
+```
+
+Los filtros aceptan `persona_id`, `estado` y `zona_codigo`. La consulta devuelve
+`{:ok, lista_de_mensajes}`, ordenada por fecha ascendente e ID; la entrega devuelve
+`{:ok, mensaje_actualizado}`. Los errores usan `{:error, motivo}`. Solo se permite
+`pendiente → entregado`; repetir la entrega devuelve `:ya_resuelto`.
+Crear mensajes exige acceso a la persona y permiso de reporte en su zona.
+Los ciudadanos consultan únicamente mensajes creados por ellos, con evidencia de
+`RegistroActividad` que incluya `:enviar_mensaje_familiar`, ID del mensaje y usuario
+autenticado. Sin evidencia no se concede autoría. No pueden confirmar entregas.
+Voluntarios y coordinadores consultan y entregan en su zona; administración tiene
+alcance global. Los filtros nunca amplían el alcance de la sesión.
+`remitente` y `destinatario` son informativos y no acreditan identidad ni permisos.
+El coordinador genera ID, fecha y auditoría, y solo confirma después de persistir.
+
 Consultas de necesidades y recursos:
 
 ```elixir
@@ -131,7 +151,8 @@ Reglas invariantes: IDs únicos; cantidades y capacidades no negativas; ninguna 
 |---|---:|---:|---:|---:|
 | Reportar necesidad, persona o mascota | Sí, en su zona | Sí, en su zona | Sí, en su zona | Sí, global |
 | Consultar reportes y estado de su zona | Sí, datos permitidos | Sí | Sí | Sí |
-| Cambiar estado de personas / atender mensajes | Propios o reportados por sí mismo | Sí, en su zona | Sí, en su zona | Sí |
+| Cambiar estado de personas | Propios o reportados por sí mismo | En su zona | En su zona | Global |
+| Marcar mensajes como entregados | No autorizado | En su zona | En su zona | Global |
 | Asignar necesidades, inventario y transferencias | No | No | Sí, en su zona | Sí, global |
 | Registrar entradas/salidas de albergue | No | Sí, en su zona | Sí, en su zona | Sí |
 | Confirmar coincidencia de mascotas | No | Proponer | Sí, en su zona | Sí |
@@ -140,6 +161,10 @@ Reglas invariantes: IDs únicos; cantidades y capacidades no negativas; ninguna 
 **Regla de alta confirmada:** si el usuario no existe, `conectar/1` lo crea como `:ciudadano`; el registro público no recibe un rol privilegiado. Voluntario/coordinador/administrador se asignan por administración autorizada. Almacenar `password_hash`, nunca la contraseña en texto plano. La matriz anterior queda aprobada como contrato inicial.
 
 La implementación solicita contraseñas de al menos ocho caracteres y deriva `password_hash` con PBKDF2-HMAC-SHA256 y salt aleatorio. La cuenta administradora inicial se provisiona localmente y solo cuando el conjunto de usuarios está vacío.
+
+La aclaración de la matriz de mensajes de la etapa 4 deberá comunicarse al equipo
+antes de integrar los cambios en la rama principal. No modifica los permisos de
+personas ni requiere cambios en `Emergencias.Usuarios`.
 
 ## 6. Estados y transiciones - confirmados
 

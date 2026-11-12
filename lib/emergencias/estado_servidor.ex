@@ -5,6 +5,7 @@ defmodule Emergencias.EstadoServidor do
   alias Emergencias.{
     Albergue,
     Albergues,
+    Mensajes,
     AsignacionRecurso,
     Estado,
     Necesidad,
@@ -547,6 +548,34 @@ defmodule Emergencias.EstadoServidor do
     end
   end
 
+  defp ejecutar_comando(estado, session_id, actor, {:enviar_mensaje_familiar, persona_id, attrs})
+       when is_map(attrs) do
+    with {:ok, persona} <- persona_visible(estado, session_id, actor, persona_id),
+         :ok <- autorizar_reporte(estado, session_id, actor, persona.zona_codigo),
+         id <- nuevo_id("MF", estado.mensajes_por_id),
+         attrs <- attrs |> Map.put(:id, id) |> Map.put(:fecha, ahora()),
+         {:ok, mensajes} <-
+           Mensajes.crear(estado.mensajes_por_id, estado.personas_por_id, persona_id, attrs) do
+      actualizado = %{estado | mensajes_por_id: mensajes}
+      actualizado = registrar_actividad(actualizado, actor.username, :enviar_mensaje_familiar, id)
+      {:ok, actualizado, Map.fetch!(mensajes, id)}
+    end
+  end
+
+  defp ejecutar_comando(estado, session_id, actor, {:marcar_mensaje_entregado, id}) do
+    with {:ok, mensaje} <- Mensajes.obtener(estado.mensajes_por_id, id),
+         {:ok, persona} <- persona_visible(estado, session_id, actor, mensaje.persona_id),
+         :ok <- autorizar_zona(estado, session_id, :atender_mensaje, persona.zona_codigo),
+         {:ok, mensajes} <- Mensajes.marcar_entregado(estado.mensajes_por_id, id) do
+      actualizado = %{estado | mensajes_por_id: mensajes}
+
+      actualizado =
+        registrar_actividad(actualizado, actor.username, :marcar_mensaje_entregado, id)
+
+      {:ok, actualizado, Map.fetch!(mensajes, id)}
+    end
+  end
+
   defp ejecutar_comando(_estado, _session_id, _actor, comando)
        when is_tuple(comando) and tuple_size(comando) > 0 and
               elem(comando, 0) in [
@@ -678,6 +707,27 @@ defmodule Emergencias.EstadoServidor do
     end
   end
 
+  defp consultar_estado(estado, session_id, actor, {:mensajes_familiares, filtros})
+       when is_map(filtros) do
+    with {:ok, filtros} <- filtros_por_zona(estado, session_id, actor, filtros),
+         {:ok, personas} <-
+           Personas.listar(
+             estado.personas_por_id,
+             Map.take(filtros, [:zona_codigo, "zona_codigo"])
+           ) do
+      personas_ids = MapSet.new(personas, & &1.id)
+
+      estado.mensajes_por_id
+      |> Map.values()
+      |> Enum.filter(&MapSet.member?(personas_ids, &1.persona_id))
+      |> Enum.filter(
+        &(actor.rol != :ciudadano or mensaje_propio?(estado.actividad, &1.id, actor.username))
+      )
+      |> Map.new(&{&1.id, &1})
+      |> Mensajes.listar(filtros)
+    end
+  end
+
   defp consultar_estado(_estado, _session_id, _actor, _consulta),
     do: {:error, :consulta_no_reconocida}
 
@@ -703,6 +753,20 @@ defmodule Emergencias.EstadoServidor do
          do: {:ok, persona},
          else: {:error, :no_encontrado}
     end
+  end
+
+  defp mensaje_propio?(actividad, mensaje_id, username) do
+    Enum.any?(actividad, fn
+      %Emergencias.RegistroActividad{
+        accion: :enviar_mensaje_familiar,
+        entidad_id: ^mensaje_id,
+        username: ^username
+      } ->
+        true
+
+      _registro ->
+        false
+    end)
   end
 
   defp autorizar_cambio_persona(estado, session_id, %{rol: :ciudadano} = actor, persona) do
