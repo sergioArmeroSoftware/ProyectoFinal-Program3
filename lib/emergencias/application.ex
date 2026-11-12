@@ -20,7 +20,6 @@ defmodule Emergencias.Application do
       EmergenciasWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:emergencias, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Emergencias.PubSub},
-      EmergenciasWeb.DemoEstado,
       EmergenciasWeb.Endpoint
     ]
   end

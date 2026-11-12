@@ -21,12 +21,18 @@ defmodule EmergenciasWeb.AppShell do
               <span class="text-xs text-slate-300">Coordinación y atención</span>
             </span>
           </a>
+
           <nav class="flex flex-wrap items-center gap-1 text-sm" aria-label="Navegación principal">
             <.nav_link href="/" current={@current_path}>Inicio</.nav_link>
             <.nav_link :if={is_nil(@current_user)} href="/acceso" current={@current_path}>Acceso</.nav_link>
             <.nav_link :if={@current_user} href="/usuarios" current={@current_path}>Usuarios</.nav_link>
             <.nav_link :if={@current_user} href="/zonas" current={@current_path}>Zonas</.nav_link>
             <.nav_link :if={@current_user} href="/albergues" current={@current_path}>Albergues</.nav_link>
+            <.nav_link :if={@current_user} href="/personas" current={@current_path}>Personas</.nav_link>
+            <.nav_link :if={@current_user} href="/mensajes" current={@current_path}>Mensajes</.nav_link>
+            <.nav_link :if={@current_user} href="/mascotas" current={@current_path}>Mascotas</.nav_link>
+            <.nav_link :if={@current_user} href="/necesidades" current={@current_path}>Necesidades</.nav_link>
+            <.nav_link :if={@current_user} href="/recursos" current={@current_path}>Recursos</.nav_link>
             <div
               :if={@current_user}
               class="ml-2 flex items-center gap-3 border-l border-white/15 pl-3"
@@ -35,6 +41,7 @@ defmodule EmergenciasWeb.AppShell do
                 <span class="block font-semibold">{@current_user.nombre_completo}</span>
                 <span class="text-slate-300">{humanizar(@current_user.rol)}</span>
               </span>
+
               <form action="/sesion" method="post">
                 <input type="hidden" name="_method" value="delete" />
                 <input type="hidden" name="_csrf_token" value={@csrf_token} />
@@ -50,8 +57,7 @@ defmodule EmergenciasWeb.AppShell do
           :if={Phoenix.Flash.get(@flash, :error)}
           message={Phoenix.Flash.get(@flash, :error)}
           kind="error"
-        />
-        {render_slot(@inner_block)}
+        /> {render_slot(@inner_block)}
       </main>
 
       <footer class="border-t border-slate-200 bg-white">
@@ -97,6 +103,7 @@ defmodule EmergenciasWeb.AppShell do
     <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <div class="mb-5">
         <h2 class="text-lg font-bold">{@title}</h2>
+
         <%= if @description do %>
           <p class="mt-1 text-sm text-slate-600">{@description}</p>
         <% end %>
@@ -135,8 +142,7 @@ defmodule EmergenciasWeb.AppShell do
         title={@title}
         aria-invalid={if @error, do: "true", else: "false"}
         class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-      />
-      <span :if={@error} class="block text-xs font-normal text-rose-700">{@error}</span>
+      /> <span :if={@error} class="block text-xs font-normal text-rose-700">{@error}</span>
       <span :if={is_nil(@error) and @hint} class="block text-xs font-normal text-slate-500">{@hint}</span>
     </label>
     """

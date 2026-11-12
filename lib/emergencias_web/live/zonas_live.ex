@@ -2,49 +2,23 @@ defmodule EmergenciasWeb.ZonasLive do
   @moduledoc "Interfaz de demostración para administración territorial y estadísticas."
   use EmergenciasWeb, :live_view
 
-  alias Emergencias.{PuntoAtencion, Sector, Zona}
+  alias Emergencias.{API, Codigos, PuntoAtencion, Zona, Zonas}
   alias EmergenciasWeb.AppShell
   alias EmergenciasWeb.LiveAuth
-  alias EmergenciasWeb.Demo
 
   @niveles [:baja, :media, :alta, :critica]
   @estados [:activo, :inactivo, :saturado]
 
   @impl true
-  def mount(_params, _session, socket) do
-    zona = %Zona{
-      codigo: "Z-01",
-      nombre: "Centro",
-      nivel_afectacion: :alta,
-      personas_estimadas: 120,
-      sectores: [
-        %Sector{
-          codigo: "SEC-01",
-          nombre: "Sector Norte",
-          puntos: [
-            %PuntoAtencion{
-              codigo: "PA-01",
-              nombre: "Puesto Central",
-              personas_estimadas: 50,
-              estado: :activo
-            },
-            %PuntoAtencion{
-              codigo: "PA-02",
-              nombre: "Puesto Escolar",
-              personas_estimadas: 35,
-              estado: :saturado
-            }
-          ]
-        },
-        %Sector{codigo: "SEC-02", nombre: "Sector Sur", puntos: []}
-      ]
-    }
+  def mount(_params, session, socket) do
+    zonas = cargar_zonas(session["session_id"])
 
     {:ok,
      assign(socket,
-       zonas: %{zona.codigo => zona},
+       session_id: session["session_id"],
+       zonas: zonas,
        errores: %{},
-       opciones_zona: [{"#{zona.nombre} · #{zona.codigo}", zona.codigo}],
+       opciones_zona: opciones_zona(zonas),
        mensaje: nil,
        tipo_mensaje: "info",
        niveles: Enum.map(@niveles, &{humanizar(&1), Atom.to_string(&1)}),
@@ -73,37 +47,28 @@ defmodule EmergenciasWeb.ZonasLive do
   end
 
   def handle_event("crear_zona", %{"zona" => attrs}, socket) do
-    with {:ok, nivel} <- enum_value(@niveles, attrs["nivel_afectacion"]),
-         {:ok, estimado} <- parse_non_negative(attrs["personas_estimadas"]) do
-      zona = %Zona{
-        codigo: attrs["codigo"],
-        nombre: attrs["nombre"],
-        nivel_afectacion: nivel,
-        personas_estimadas: estimado
-      }
+    case API.ejecutar(socket.assigns.session_id, {:registrar_zona, attrs}) do
+      {:ok, _zona} ->
+        zonas = cargar_zonas(socket.assigns.session_id)
 
-      case Demo.crear_zona(socket.assigns.zonas, zona) do
-        {:ok, zonas} ->
-          {:noreply,
-           socket
-           |> assign(zonas: zonas, opciones_zona: opciones_zona(zonas), errores: %{})
-           |> feedback("Zona creada.", "success")}
-
-        {:error, motivo} ->
-          {:noreply, mostrar_error(socket, motivo)}
-      end
-    else
-      _error ->
         {:noreply,
-         feedback(socket, "Revisa el nivel de afectación y el estimado de personas.", "error")}
+         socket
+         |> assign(zonas: zonas, opciones_zona: opciones_zona(zonas), errores: %{})
+         |> feedback("Zona creada.", "success")}
+
+      {:error, motivo} ->
+        {:noreply, mostrar_error(socket, motivo)}
     end
   end
 
   def handle_event("agregar_sector", %{"sector" => attrs}, socket) do
-    sector = %Sector{codigo: attrs["codigo"], nombre: attrs["nombre"]}
+    case API.ejecutar(
+           socket.assigns.session_id,
+           {:registrar_sector, attrs["zona_codigo"], attrs}
+         ) do
+      {:ok, _sector} ->
+        zonas = cargar_zonas(socket.assigns.session_id)
 
-    case Demo.agregar_sector(socket.assigns.zonas, attrs["zona_codigo"], sector) do
-      {:ok, zonas} ->
         {:noreply,
          socket
          |> assign(zonas: zonas, errores: %{})
@@ -115,34 +80,20 @@ defmodule EmergenciasWeb.ZonasLive do
   end
 
   def handle_event("agregar_punto", %{"punto" => attrs}, socket) do
-    with {:ok, estimado} <- parse_non_negative(attrs["personas_estimadas"]),
-         {:ok, estado} <- enum_value(@estados, attrs["estado"]) do
-      punto = %PuntoAtencion{
-        codigo: attrs["codigo"],
-        nombre: attrs["nombre"],
-        personas_estimadas: estimado,
-        estado: estado
-      }
+    case API.ejecutar(
+           socket.assigns.session_id,
+           {:registrar_punto_atencion, attrs["zona_codigo"], attrs["sector_codigo"], attrs}
+         ) do
+      {:ok, _punto} ->
+        zonas = cargar_zonas(socket.assigns.session_id)
 
-      case Demo.agregar_punto(
-             socket.assigns.zonas,
-             attrs["zona_codigo"],
-             attrs["sector_codigo"],
-             punto
-           ) do
-        {:ok, zonas} ->
-          {:noreply,
-           socket
-           |> assign(zonas: zonas, errores: %{})
-           |> feedback("Punto agregado al sector.", "success")}
-
-        {:error, motivo} ->
-          {:noreply, mostrar_error(socket, motivo)}
-      end
-    else
-      _error ->
         {:noreply,
-         feedback(socket, "Indica un estado válido y un estimado no negativo.", "error")}
+         socket
+         |> assign(zonas: zonas, errores: %{})
+         |> feedback("Punto agregado al sector.", "success")}
+
+      {:error, motivo} ->
+        {:noreply, mostrar_error(socket, motivo)}
     end
   end
 
@@ -152,17 +103,16 @@ defmodule EmergenciasWeb.ZonasLive do
         socket
       ) do
     with %Zona{sectores: sectores} <- Map.get(socket.assigns.zonas, zona_codigo),
-         %PuntoAtencion{} = punto <- Demo.buscar_punto(sectores, punto_codigo) do
+         %PuntoAtencion{} = punto <- Zonas.buscar_punto(sectores, punto_codigo) do
       estado = if punto.estado == :activo, do: :inactivo, else: :activo
 
-      case Demo.cambiar_estado_punto(
-             socket.assigns.zonas,
-             zona_codigo,
-             sector_codigo,
-             punto_codigo,
-             estado
+      case API.ejecutar(
+             socket.assigns.session_id,
+             {:cambiar_estado_punto_atencion, zona_codigo, sector_codigo, punto_codigo, estado}
            ) do
-        {:ok, zonas} ->
+        {:ok, _resultado} ->
+          zonas = cargar_zonas(socket.assigns.session_id)
+
           {:noreply,
            socket |> assign(zonas: zonas) |> feedback("Estado del punto actualizado.", "success")}
 
@@ -189,21 +139,22 @@ defmodule EmergenciasWeb.ZonasLive do
         <p class="text-sm font-semibold uppercase tracking-widest text-orange-700">
           Módulo de Sergio Armero Salazar
         </p>
+
         <div class="mt-1 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 class="text-3xl font-black">Zonas y puntos de atención</h1>
+
             <p class="mt-2 text-slate-600">
               Organiza el territorio afectado y consulta sus indicadores recursivos.
             </p>
           </div>
+
           <span class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><strong class="text-lg">{map_size(
             zonas_visibles(@zonas, @current_user)
           )}</strong><span class="ml-2 text-slate-500">zonas en tu alcance</span></span>
         </div>
       </div>
-
       <AppShell.notice message={@mensaje} kind={@tipo_mensaje} />
-
       <AppShell.notice
         :if={!LiveAuth.administrador?(@current_user)}
         message="Vista de consulta. Solo un administrador puede crear zonas, sectores, puntos o cambiar su estado."
@@ -226,7 +177,7 @@ defmodule EmergenciasWeb.ZonasLive do
               placeholder="Z-03"
               pattern="Z-[0-9]{2}"
               title="Usa el formato Z-01."
-              hint={Demo.formato_codigo(:zona)}
+              hint={Codigos.formato(:zona)}
               error={@errores[:zona]}
               required
             />
@@ -275,7 +226,7 @@ defmodule EmergenciasWeb.ZonasLive do
               placeholder="SEC-03"
               pattern="SEC-[0-9]{2}"
               title="Usa el formato SEC-01."
-              hint={Demo.formato_codigo(:sector)}
+              hint={Codigos.formato(:sector)}
               error={@errores[:sector]}
               required
             />
@@ -310,7 +261,7 @@ defmodule EmergenciasWeb.ZonasLive do
               placeholder="SEC-01"
               pattern="SEC-[0-9]{2}"
               title="Usa el formato SEC-01."
-              hint={Demo.formato_codigo(:sector)}
+              hint={Codigos.formato(:sector)}
               error={@errores[:sector_punto]}
               required
             />
@@ -321,7 +272,7 @@ defmodule EmergenciasWeb.ZonasLive do
                 placeholder="PA-03"
                 pattern="PA-[0-9]{2}"
                 title="Usa el formato PA-01."
-                hint={Demo.formato_codigo(:punto_atencion)}
+                hint={Codigos.formato(:punto_atencion)}
                 error={@errores[:punto]}
                 required
               />
@@ -334,6 +285,7 @@ defmodule EmergenciasWeb.ZonasLive do
                 required
               />
             </div>
+
             <AppShell.field
               label="Nombre del punto"
               name="punto[nombre]"
@@ -353,18 +305,22 @@ defmodule EmergenciasWeb.ZonasLive do
 
       <div class="mt-7 space-y-5">
         <AppShell.panel
-          :for={zona <- Demo.listar_zonas(zonas_visibles(@zonas, @current_user))}
+          :for={
+            zona <- zonas_visibles(@zonas, @current_user) |> Map.values() |> Enum.sort_by(& &1.codigo)
+          }
           title={"#{zona.codigo} · #{zona.nombre}"}
           description={"Afectación #{humanizar(zona.nivel_afectacion)} · #{zona.personas_estimadas} personas estimadas"}
         >
           <div class="mb-5 grid gap-3 sm:grid-cols-3">
-            <.metric label="Sectores" value={Demo.contar_sectores(zona)} />
-            <.metric label="Puntos registrados" value={Demo.contar_puntos(zona)} />
-            <.metric label="Puntos activos" value={Demo.contar_puntos_por_estado(zona, :activo)} />
+            <.metric label="Sectores" value={Zonas.contar_sectores(zona)} />
+            <.metric label="Puntos registrados" value={Zonas.contar_puntos(zona)} />
+            <.metric label="Puntos activos" value={Zonas.contar_puntos_por_estado(zona, :activo)} />
           </div>
+
           <div :if={zona.sectores == []} class="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">
             Esta zona aún no tiene sectores.
           </div>
+
           <div
             :for={sector <- zona.sectores}
             class="mb-3 rounded-xl border border-slate-200 p-4 last:mb-0"
@@ -373,19 +329,23 @@ defmodule EmergenciasWeb.ZonasLive do
               <h3 class="font-bold">{sector.codigo} · {sector.nombre}</h3>
               <span class="text-xs text-slate-500">{length(sector.puntos)} puntos</span>
             </div>
+
             <div :if={sector.puntos == []} class="mt-3 text-sm text-slate-500">
               Sin puntos de atención.
             </div>
+
             <div
               :for={punto <- sector.puntos}
               class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-3"
             >
               <div>
                 <p class="text-sm font-semibold">{punto.codigo} · {punto.nombre}</p>
+
                 <p class="mt-0.5 text-xs text-slate-500">
                   {punto.personas_estimadas} personas estimadas
                 </p>
               </div>
+
               <div class="flex items-center gap-2">
                 <span class={estado_badge(punto.estado)}>{humanizar(punto.estado)}</span>
                 <button
@@ -412,25 +372,10 @@ defmodule EmergenciasWeb.ZonasLive do
     ~H"""
     <div class="rounded-xl bg-slate-50 p-4">
       <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{@label}</p>
+
       <p class="mt-1 text-2xl font-black">{@value}</p>
     </div>
     """
-  end
-
-  defp parse_non_negative(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {integer, ""} when integer >= 0 -> {:ok, integer}
-      _resultado -> {:error, :cantidad_invalida}
-    end
-  end
-
-  defp parse_non_negative(_value), do: {:error, :cantidad_invalida}
-
-  defp enum_value(values, value) do
-    case Enum.find(values, &(Atom.to_string(&1) == value)) do
-      nil -> {:error, :valor_invalido}
-      found -> {:ok, found}
-    end
   end
 
   defp mostrar_error(socket, :id_duplicado),
@@ -462,15 +407,23 @@ defmodule EmergenciasWeb.ZonasLive do
   defp error_codigo(_tipo, ""), do: nil
 
   defp error_codigo(tipo, codigo) do
-    if Demo.valido_codigo?(tipo, codigo),
+    if Codigos.valido?(tipo, codigo),
       do: nil,
-      else: "Formato inválido. Ejemplo: #{Demo.formato_codigo(tipo)}."
+      else: "Formato inválido. Ejemplo: #{Codigos.formato(tipo)}."
   end
 
   defp opciones_zona(zonas) do
     zonas
-    |> Demo.listar_zonas()
+    |> Map.values()
+    |> Enum.sort_by(& &1.codigo)
     |> Enum.map(&{"#{&1.nombre} · #{&1.codigo}", &1.codigo})
+  end
+
+  defp cargar_zonas(session_id) do
+    case API.consultar(session_id, :zonas) do
+      {:ok, zonas} -> Map.new(zonas, &{&1.codigo, &1})
+      {:error, _motivo} -> %{}
+    end
   end
 
   defp zonas_visibles(zonas, %{rol: :administrador}), do: zonas

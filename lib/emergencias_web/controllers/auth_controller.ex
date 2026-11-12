@@ -2,7 +2,7 @@ defmodule EmergenciasWeb.AuthController do
   @moduledoc "Establece y elimina la cookie de sesión de la demostración."
   use EmergenciasWeb, :controller
 
-  alias EmergenciasWeb.DemoEstado
+  alias Emergencias.API
 
   def create(conn, %{"usuario" => attrs}) do
     modo = Map.get(attrs, "modo", "ingresar")
@@ -13,17 +13,19 @@ defmodule EmergenciasWeb.AuthController do
     else
       attrs = Map.drop(attrs, ["modo", "password_confirmation"])
 
-      resultado =
-        if modo == "registro", do: DemoEstado.registrar(attrs), else: DemoEstado.ingresar(attrs)
-
-      establecer_sesion(conn, resultado, modo)
+      case {modo, API.conectar(attrs)} do
+        {"registro", {:ok, resultado}} -> establecer_sesion(conn, {:ok, resultado}, modo)
+        {"registro", {:error, motivo}} -> establecer_sesion(conn, {:error, motivo}, modo)
+        {_, {:ok, resultado}} -> establecer_sesion(conn, {:ok, resultado}, modo)
+        {_, {:error, motivo}} -> establecer_sesion(conn, {:error, error_login(motivo)}, modo)
+      end
     end
   end
 
   def create(conn, _params), do: conn |> redirect(to: "/acceso?error=datos_incompletos")
 
   def delete(conn, _params) do
-    DemoEstado.salir(get_session(conn, :demo_session_id))
+    API.desconectar(get_session(conn, :session_id))
 
     conn
     |> configure_session(drop: true)
@@ -33,7 +35,7 @@ defmodule EmergenciasWeb.AuthController do
   defp establecer_sesion(conn, {:ok, %{session_id: session_id}}, _modo) do
     conn
     |> configure_session(renew: true)
-    |> put_session(:demo_session_id, session_id)
+    |> put_session(:session_id, session_id)
     |> redirect(to: "/")
   end
 
@@ -50,4 +52,8 @@ defmodule EmergenciasWeb.AuthController do
   defp error_key(:codigo_invalido), do: "codigo_invalido"
   defp error_key(:zona_no_encontrada), do: "zona_no_encontrada"
   defp error_key(_motivo), do: "datos_incompletos"
+
+  defp error_login(:zona_requerida), do: :credenciales_invalidas
+  defp error_login(:datos_incompletos), do: :credenciales_invalidas
+  defp error_login(motivo), do: motivo
 end

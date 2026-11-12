@@ -1,9 +1,38 @@
 import Config
 
-config :emergencias, :node_role, String.to_atom(System.get_env("EMERGENCIAS_NODE_ROLE", "all"))
+role =
+  case System.get_env("EMERGENCIAS_NODE_ROLE", "all") do
+    "all" -> :all
+    "core" -> :core
+    "web" -> :web
+    _value -> raise "EMERGENCIAS_NODE_ROLE debe ser all, core o web"
+  end
 
-if System.get_env("EMERGENCIAS_CORE_NODE") do
-  config :emergencias, :core_node, String.to_atom(System.get_env("EMERGENCIAS_CORE_NODE"))
+config :emergencias, :node_role, role
+
+if role in [:core, :web] do
+  {node_name, core_node} =
+    case role do
+      :core ->
+        {:emergencias_core@localhost, :emergencias_core@localhost}
+
+      :web ->
+        core_node =
+          case System.get_env("EMERGENCIAS_CORE_NODE", "emergencias_core@localhost") do
+            "emergencias_core@localhost" -> :emergencias_core@localhost
+            _value -> raise "EMERGENCIAS_CORE_NODE debe ser emergencias_core@localhost"
+          end
+
+        {:emergencias_web@localhost, core_node}
+    end
+
+  case Node.start(node_name, :shortnames) do
+    {:ok, _pid} -> :ok
+    {:error, {:already_started, _pid}} -> :ok
+    {:error, reason} -> raise "No se pudo iniciar el nodo distribuido: #{inspect(reason)}"
+  end
+
+  config :emergencias, :core_node, core_node
 end
 
 # config/runtime.exs is executed for all environments, including

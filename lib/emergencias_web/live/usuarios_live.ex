@@ -2,29 +2,28 @@ defmodule EmergenciasWeb.UsuariosLive do
   @moduledoc "Interfaz de demostración para registro, consulta y roles de usuarios."
   use EmergenciasWeb, :live_view
 
+  alias Emergencias.{API, Usuarios}
   alias EmergenciasWeb.AppShell
-  alias EmergenciasWeb.{DemoEstado, LiveAuth}
-  alias EmergenciasWeb.Demo
+  alias EmergenciasWeb.LiveAuth
 
   @impl true
-  def mount(_params, _session, socket) do
-    {:ok, usuarios} = DemoEstado.listar_usuarios()
+  def mount(_params, session, socket) do
+    usuarios = datos_o_vacio(API.consultar(session["session_id"], :usuarios))
+    zonas = datos_o_vacio(API.consultar(session["session_id"], :zonas))
 
     {:ok,
      assign(socket,
        usuarios: usuarios,
-       zonas:
-         Demo.zonas_demo()
-         |> Enum.map(fn {codigo, zona} -> {"#{zona.nombre} · #{codigo}", codigo} end),
+       zonas: Enum.map(zonas, &{"#{&1.nombre} · #{&1.codigo}", &1.codigo}),
        mensaje: nil,
        tipo_mensaje: "info",
-       roles: Enum.map(Demo.roles(), &{humanizar(&1), Atom.to_string(&1)})
+       roles: Enum.map(Usuarios.roles(), &{humanizar(&1), Atom.to_string(&1)})
      )}
   end
 
   @impl true
   def handle_event("registrar_usuario", %{"usuario" => attrs}, socket) do
-    case DemoEstado.crear_usuario(socket.assigns.demo_session_id, attrs) do
+    case API.ejecutar(socket.assigns.session_id, {:registrar_usuario, attrs}) do
       {:ok, _usuario} ->
         {:noreply,
          socket
@@ -58,10 +57,10 @@ defmodule EmergenciasWeb.UsuariosLive do
         %{"cambio" => %{"username" => username, "rol" => rol_texto}},
         socket
       ) do
-    rol = Enum.find(Demo.roles(), &(Atom.to_string(&1) == rol_texto))
+    rol = Enum.find(Usuarios.roles(), &(Atom.to_string(&1) == rol_texto))
 
-    case DemoEstado.asignar_rol(socket.assigns.demo_session_id, username, rol) do
-      :ok ->
+    case API.ejecutar(socket.assigns.session_id, {:asignar_rol, username, rol}) do
+      {:ok, _usuario} ->
         {:noreply,
          socket
          |> recargar_usuarios()
@@ -76,8 +75,8 @@ defmodule EmergenciasWeb.UsuariosLive do
   end
 
   def handle_event("desactivar_usuario", %{"username" => username}, socket) do
-    case DemoEstado.desactivar_usuario(socket.assigns.demo_session_id, username) do
-      :ok ->
+    case API.ejecutar(socket.assigns.session_id, {:desactivar_usuario, username}) do
+      {:ok, _respuesta} ->
         {:noreply,
          socket
          |> recargar_usuarios()
@@ -108,11 +107,14 @@ defmodule EmergenciasWeb.UsuariosLive do
           <p class="text-sm font-semibold uppercase tracking-widest text-orange-700">
             Módulo de Sergio Armero Salazar
           </p>
+
           <h1 class="mt-1 text-3xl font-black">Usuarios y permisos</h1>
+
           <p class="mt-2 text-slate-600">
             Alta ciudadana, administración de roles y estado de las cuentas.
           </p>
         </div>
+
         <div
           :if={LiveAuth.administrador?(@current_user)}
           class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"
@@ -154,8 +156,7 @@ defmodule EmergenciasWeb.UsuariosLive do
               options={@zonas}
               value="Z-01"
               required
-            />
-            <AppShell.notice message={@mensaje} kind={@tipo_mensaje} />
+            /> <AppShell.notice message={@mensaje} kind={@tipo_mensaje} />
             <button
               type="submit"
               class="w-full rounded-lg bg-orange-600 px-4 py-3 font-semibold text-white hover:bg-orange-500"
@@ -177,13 +178,17 @@ defmodule EmergenciasWeb.UsuariosLive do
                   </th><th class="py-3">Estado</th>
                 </tr>
               </thead>
+
               <tbody class="divide-y divide-slate-100">
                 <tr :for={usuario <- @usuarios}>
                   <td class="py-4 pr-4">
                     <p class="font-semibold text-slate-900">{usuario.nombre_completo}</p>
+
                     <p class="text-xs text-slate-500">@{usuario.username}</p>
                   </td>
+
                   <td class="py-4 pr-4 text-slate-600">{usuario.zona_principal || "—"}</td>
+
                   <td class="py-4 pr-4">
                     <.form
                       :if={LiveAuth.administrador?(@current_user) and usuario.activo}
@@ -205,13 +210,16 @@ defmodule EmergenciasWeb.UsuariosLive do
                           {label}
                         </option>
                       </select>
+
                       <button class="rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-700">Aplicar</button>
                     </.form>
+
                     <span
                       :if={!LiveAuth.administrador?(@current_user) or not usuario.activo}
                       class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"
                     >{humanizar(usuario.rol)}</span>
                   </td>
+
                   <td class="py-4">
                     <div class="flex items-center gap-2">
                       <span class={
@@ -223,6 +231,7 @@ defmodule EmergenciasWeb.UsuariosLive do
                       }>
                         {if usuario.activo, do: "Activa", else: "Inactiva"}
                       </span>
+
                       <button
                         :if={LiveAuth.administrador?(@current_user) and usuario.activo}
                         type="button"
@@ -236,11 +245,13 @@ defmodule EmergenciasWeb.UsuariosLive do
               </tbody>
             </table>
           </div>
+
           <p class="mt-4 text-xs leading-5 text-slate-500">
             El cambio de rol pasa por la misma regla de dominio que exige un administrador activo. En el sistema integrado, la identidad del solicitante vendrá de la sesión validada por el coordinador.
           </p>
         </AppShell.panel>
       </div>
+
       <AppShell.notice
         :if={!LiveAuth.administrador?(@current_user)}
         message="El listado y la administración de cuentas están reservados al rol administrador."
@@ -252,9 +263,11 @@ defmodule EmergenciasWeb.UsuariosLive do
   defp feedback(socket, mensaje, tipo), do: assign(socket, mensaje: mensaje, tipo_mensaje: tipo)
 
   defp recargar_usuarios(socket) do
-    {:ok, usuarios} = DemoEstado.listar_usuarios()
-    assign(socket, usuarios: usuarios)
+    assign(socket, usuarios: datos_o_vacio(API.consultar(socket.assigns.session_id, :usuarios)))
   end
+
+  defp datos_o_vacio({:ok, datos}), do: datos
+  defp datos_o_vacio(_error), do: []
 
   defp humanizar(value) when is_atom(value),
     do: value |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()

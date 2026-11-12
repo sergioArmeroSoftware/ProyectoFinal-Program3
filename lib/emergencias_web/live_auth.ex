@@ -4,21 +4,21 @@ defmodule EmergenciasWeb.LiveAuth do
   import Phoenix.Component, only: [assign: 3]
 
   alias Emergencias.Usuarios
-  alias EmergenciasWeb.DemoEstado
+  alias Emergencias.API
 
   @admin_only_events ~w(
     registrar_usuario asignar_rol desactivar_usuario
     crear_zona agregar_sector agregar_punto alternar_punto registrar_albergue
   )
 
-  def on_mount(:default, _params, %{"demo_session_id" => session_id} = session, socket)
+  def on_mount(:default, _params, %{"session_id" => session_id} = session, socket)
       when is_binary(session_id) do
-    case DemoEstado.usuario(session_id) do
+    case API.consultar(session_id, :sesion_actual) do
       {:ok, usuario} ->
         socket =
           socket
           |> assign(:current_user, usuario)
-          |> assign(:demo_session_id, session_id)
+          |> assign(:session_id, session_id)
           |> assign(:csrf_token, session["csrf_token"])
           |> attach_hook(:demo_permissions, :handle_event, &authorize_event/3)
 

@@ -54,7 +54,7 @@ El único escritor de `data/estado.json` es el nodo coordinador. Una mutación s
 
 ### Excepción temporal para el front en desarrollo
 
-Mientras los comandos del coordinador se completan, las pantallas de Sergio usan `EmergenciasWeb.Demo` con mapas y structs asignados al proceso LiveView. Esos datos de demostración no son compartidos entre pantallas, no se guardan en disco y se pierden al recargar o navegar. Las LiveViews solo llaman a ese adaptador; no implementan reglas de dominio. Al integrar, se reemplazan las llamadas del adaptador por `Emergencias.API`, se retiran los datos ficticios y los formularios usan el actor de la sesión real.
+Las pantallas de Sergio consultan y mutan el estado del coordinador mediante `Emergencias.API`; las reglas del dominio y la persistencia quedan fuera de LiveView. Los datos iniciales dependen del estado JSON y de la zona que el administrador registre durante el primer inicio.
 
 ## 4. Estructuras, colecciones e identificadores
 
@@ -102,7 +102,7 @@ Cada recorrido debe mantener caso base y caso recursivo identificables, trabajar
 - Todas las pantallas operativas requieren una sesión válida. El registro público inicia con rol ciudadano; la cuenta administradora de desarrollo solo existe si se configura `EMERGENCIAS_DEMO_ADMIN_PASSWORD`.
 - La interfaz de demostración restringe administración al rol administrador y operaciones de albergue al permiso `gestionar_albergue` dentro de la zona asignada. Estas comprobaciones en LiveView son una protección del prototipo; al integrar el coordinador, cada comando debe validar nuevamente identidad, rol y zona en el servidor.
 - Las cuentas y sesiones de la interfaz de demostración están en memoria y se borran al reiniciar la app. No las describir como autenticación persistente.
-- En la versión integrada, las vistas llaman únicamente a `Emergencias.API`; no asumen que una mutación fue exitosa hasta recibir respuesta. El prototipo puede usar `DemoEstado` mientras se desarrolla la integración.
+- Las vistas llaman únicamente a `Emergencias.API`; no asumen que una mutación fue exitosa hasta recibir respuesta.
 - Mostrar estados de carga y mensajes comprensibles para errores funcionales; no presentar stack traces a usuarios.
 - La autorización se comprueba en el coordinador en cada comando, incluso si la vista oculta el botón. Validar tanto el rol como el alcance de zona.
 - La sesión identifica al actor; no se acepta `username`, rol o zona enviados desde el formulario como prueba de identidad.

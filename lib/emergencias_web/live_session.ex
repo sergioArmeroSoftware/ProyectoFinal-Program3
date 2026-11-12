@@ -4,7 +4,7 @@ defmodule EmergenciasWeb.LiveSession do
   def session(conn) do
     %{
       "csrf_token" => Plug.CSRFProtection.get_csrf_token(),
-      "demo_session_id" => Plug.Conn.get_session(conn, :demo_session_id)
+      "session_id" => Plug.Conn.get_session(conn, :session_id)
     }
   end
 end

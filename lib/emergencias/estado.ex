@@ -8,6 +8,7 @@ defmodule Emergencias.Estado do
             personas_por_id: %{},
             mensajes_por_id: %{},
             reportes_mascotas_por_id: %{},
+            coincidencias_mascotas_por_id: %{},
             albergues_por_codigo: %{},
             asignaciones_por_id: %{},
             movimientos_por_id: %{},

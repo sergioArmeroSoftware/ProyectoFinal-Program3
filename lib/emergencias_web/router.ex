@@ -2,20 +2,20 @@ defmodule EmergenciasWeb.Router do
   use EmergenciasWeb, :router
 
   pipeline :browser do
-    plug :accepts, ["html"]
-    plug :fetch_session
-    plug :fetch_live_flash
-    plug :put_root_layout, html: {EmergenciasWeb.Layouts, :root}
-    plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    plug(:accepts, ["html"])
+    plug(:fetch_session)
+    plug(:fetch_live_flash)
+    plug(:put_root_layout, html: {EmergenciasWeb.Layouts, :root})
+    plug(:protect_from_forgery)
+    plug(:put_secure_browser_headers)
   end
 
   pipeline :api do
-    plug :accepts, ["json"]
+    plug(:accepts, ["json"])
   end
 
   scope "/", EmergenciasWeb do
-    pipe_through :browser
+    pipe_through(:browser)
 
     live_session :public, session: {EmergenciasWeb.LiveSession, :session, []} do
       live "/acceso", AccesoLive, :acceso
@@ -31,6 +31,11 @@ defmodule EmergenciasWeb.Router do
       live "/usuarios", UsuariosLive, :usuarios
       live "/zonas", ZonasLive, :zonas
       live "/albergues", AlberguesLive, :albergues
+      live "/personas", PersonasLive, :index
+      live "/mensajes", MensajesLive, :index
+      live "/mascotas", MascotasLive, :index
+      live "/necesidades", NecesidadesLive, :index
+      live "/recursos", RecursosLive, :index
     end
   end
 

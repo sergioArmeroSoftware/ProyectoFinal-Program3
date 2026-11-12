@@ -2,52 +2,23 @@ defmodule EmergenciasWeb.AlberguesLive do
   @moduledoc "Interfaz de demostración para capacidad y estancias en albergues."
   use EmergenciasWeb, :live_view
 
-  alias Emergencias.{Albergue, EstanciaAlbergue}
+  alias Emergencias.{API, Codigos}
   alias EmergenciasWeb.AppShell
   alias EmergenciasWeb.LiveAuth
-  alias EmergenciasWeb.Demo
 
   @impl true
-  def mount(_params, _session, socket) do
-    fecha = Date.utc_today()
-
-    albergue = %Albergue{
-      codigo: "A-01",
-      nombre: "Centro Educativo Los Álamos",
-      zona_codigo: "Z-01",
-      capacidad_maxima: 6
-    }
-
-    estancias = %{
-      "EST-01" => %EstanciaAlbergue{
-        id: "EST-01",
-        albergue_codigo: "A-01",
-        persona_id: "P-001",
-        fecha_ingreso: fecha
-      },
-      "EST-02" => %EstanciaAlbergue{
-        id: "EST-02",
-        albergue_codigo: "A-01",
-        persona_id: "P-002",
-        fecha_ingreso: fecha
-      }
-    }
-
-    personas = %{
-      "P-001" => %{id: "P-001", nombre: "Persona de demostración 1"},
-      "P-002" => %{id: "P-002", nombre: "Persona de demostración 2"},
-      "P-003" => %{id: "P-003", nombre: "Persona de demostración 3"}
-    }
+  def mount(_params, session, socket) do
+    session_id = session["session_id"]
+    datos = cargar_datos(session_id)
 
     {:ok,
      assign(socket,
-       albergues: %{albergue.codigo => albergue},
-       zonas: %{
-         "Z-01" => %{codigo: "Z-01"},
-         "Z-02" => %{codigo: "Z-02"}
-       },
-       estancias: estancias,
-       personas: personas,
+       session_id: session_id,
+       albergues: datos.albergues,
+       resumenes: datos.resumenes,
+       zonas: datos.zonas,
+       estancias: datos.estancias,
+       personas: datos.personas,
        errores: %{},
        mensaje: nil,
        tipo_mensaje: "info"
@@ -65,11 +36,14 @@ defmodule EmergenciasWeb.AlberguesLive do
       {capacidad, ""} when capacidad >= 0 ->
         attrs = Map.put(attrs, "capacidad_maxima", capacidad)
 
-        case Demo.registrar_albergue(socket.assigns.albergues, socket.assigns.zonas, attrs) do
-          {:ok, albergues} ->
+        case API.ejecutar(socket.assigns.session_id, {:registrar_albergue, attrs}) do
+          {:ok, _albergue} ->
+            datos = cargar_datos(socket.assigns.session_id)
+
             {:noreply,
              socket
-             |> assign(albergues: albergues, errores: %{})
+             |> assign_datos(datos)
+             |> assign(errores: %{})
              |> feedback("Albergue registrado.", "success")}
 
           {:error, motivo} ->
@@ -83,21 +57,16 @@ defmodule EmergenciasWeb.AlberguesLive do
   end
 
   def handle_event("registrar_entrada", %{"entrada" => attrs}, socket) do
-    estancia_id = "EST-#{System.unique_integer([:positive, :monotonic])}"
-
-    case Demo.registrar_ingreso(
-           socket.assigns.albergues,
-           socket.assigns.estancias,
-           socket.assigns.personas,
-           attrs["albergue_codigo"],
-           attrs["persona_id"],
-           estancia_id,
-           Date.utc_today()
+    case API.ejecutar(
+           socket.assigns.session_id,
+           {:registrar_entrada_albergue, attrs["albergue_codigo"], attrs["persona_id"]}
          ) do
-      {:ok, estancias} ->
+      {:ok, _estancia} ->
+        datos = cargar_datos(socket.assigns.session_id)
+
         {:noreply,
          socket
-         |> assign(estancias: estancias)
+         |> assign_datos(datos)
          |> feedback("Ingreso registrado; la disponibilidad se actualizó.", "success")}
 
       {:error, motivo} ->
@@ -106,16 +75,16 @@ defmodule EmergenciasWeb.AlberguesLive do
   end
 
   def handle_event("registrar_salida", %{"codigo" => codigo, "persona_id" => persona_id}, socket) do
-    case Demo.registrar_salida(
-           socket.assigns.estancias,
-           codigo,
-           persona_id,
-           Date.utc_today()
+    case API.ejecutar(
+           socket.assigns.session_id,
+           {:registrar_salida_albergue, codigo, persona_id}
          ) do
-      {:ok, estancias} ->
+      {:ok, _estancia} ->
+        datos = cargar_datos(socket.assigns.session_id)
+
         {:noreply,
          socket
-         |> assign(estancias: estancias)
+         |> assign_datos(datos)
          |> feedback("Salida registrada; la plaza quedó disponible.", "success")}
 
       {:error, motivo} ->
@@ -133,26 +102,26 @@ defmodule EmergenciasWeb.AlberguesLive do
       csrf_token={@csrf_token}
       flash={@flash}
     >
-      <AppShell.notice message="Prototipo: los cambios viven en esta conexión LiveView y no se guardan en el archivo todavía." />
       <div class="mt-6">
         <p class="text-sm font-semibold uppercase tracking-widest text-orange-700">
           Módulo de Sergio Armero Salazar
         </p>
+
         <div class="mt-1 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 class="text-3xl font-black">Albergues y ocupación</h1>
+
             <p class="mt-2 text-slate-600">
               Controla capacidad, plazas disponibles y estancias activas.
             </p>
           </div>
+
           <span class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><strong class="text-lg">{map_size(
             @albergues
           )}</strong><span class="ml-2 text-slate-500">albergues</span></span>
         </div>
       </div>
-
       <AppShell.notice message={@mensaje} kind={@tipo_mensaje} />
-
       <div class="mt-6 grid gap-5 lg:grid-cols-2">
         <AppShell.panel
           :if={LiveAuth.administrador?(@current_user)}
@@ -172,7 +141,7 @@ defmodule EmergenciasWeb.AlberguesLive do
               placeholder="A-02"
               pattern="A-[0-9]{2}"
               title="Usa el formato A-01."
-              hint={Demo.formato_codigo(:albergue)}
+              hint={Codigos.formato(:albergue)}
               error={@errores[:albergue]}
               required
             />
@@ -186,7 +155,7 @@ defmodule EmergenciasWeb.AlberguesLive do
               label="Zona"
               name="albergue[zona_codigo]"
               options={opciones_zona(@zonas)}
-              value="Z-01"
+              value={zona_predeterminada(@zonas)}
               required
             />
             <AppShell.field
@@ -211,14 +180,14 @@ defmodule EmergenciasWeb.AlberguesLive do
               label="Albergue"
               name="entrada[albergue_codigo]"
               options={opciones_albergue(@albergues, @current_user)}
-              value="A-01"
+              value={albergue_predeterminado(@albergues)}
               required
             />
             <AppShell.select_field
               label="Persona afectada"
               name="entrada[persona_id]"
               options={Enum.map(@personas, fn {id, persona} -> {"#{persona.nombre} · #{id}", id} end)}
-              value="P-003"
+              value={persona_predeterminada(@personas)}
             />
             <button class="w-full rounded-lg bg-slate-900 px-4 py-2.5 font-semibold text-white hover:bg-slate-700">Registrar ingreso</button>
           </.form>
@@ -231,7 +200,7 @@ defmodule EmergenciasWeb.AlberguesLive do
           title={"#{albergue.codigo} · #{albergue.nombre}"}
           description={"Zona #{albergue.zona_codigo} · Capacidad #{albergue.capacidad_maxima} personas"}
         >
-          <% {:ok, resumen} = Demo.disponibilidad(@albergues, @estancias, albergue.codigo) %>
+          <% resumen = @resumenes[albergue.codigo] %>
           <div class="grid gap-3 sm:grid-cols-3">
             <.metric label="Capacidad" value={resumen.capacidad} />
             <.metric label="Ocupadas" value={resumen.ocupadas} />
@@ -240,26 +209,31 @@ defmodule EmergenciasWeb.AlberguesLive do
 
           <div class="mt-5 flex items-center justify-between gap-3">
             <h3 class="font-bold">Estancias activas</h3>
+
             <span class="text-xs text-slate-500">{length(
-              Demo.estancias_activas(@estancias, albergue.codigo)
+              estancias_activas(@estancias, albergue.codigo)
             )} personas</span>
           </div>
+
           <div
-            :if={Demo.estancias_activas(@estancias, albergue.codigo) == []}
+            :if={estancias_activas(@estancias, albergue.codigo) == []}
             class="mt-3 rounded-lg bg-slate-50 p-4 text-sm text-slate-500"
           >
             No hay personas alojadas actualmente.
           </div>
+
           <div
-            :for={estancia <- Demo.estancias_activas(@estancias, albergue.codigo)}
+            :for={estancia <- estancias_activas(@estancias, albergue.codigo)}
             class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3"
           >
             <div>
-              <p class="font-semibold">{@personas[estancia.persona_id].nombre}</p>
+              <p class="font-semibold">{nombre_persona(@personas, estancia.persona_id)}</p>
+
               <p class="mt-0.5 text-xs text-slate-500">
                 {estancia.persona_id} · Ingreso {estancia.fecha_ingreso}
               </p>
             </div>
+
             <button
               :if={LiveAuth.puede_gestionar_albergue?(@current_user, albergue)}
               type="button"
@@ -281,6 +255,7 @@ defmodule EmergenciasWeb.AlberguesLive do
     ~H"""
     <div class={if @accent, do: "rounded-xl bg-emerald-50 p-4", else: "rounded-xl bg-slate-50 p-4"}>
       <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{@label}</p>
+
       <p class="mt-1 text-2xl font-black">{@value}</p>
     </div>
     """
@@ -316,38 +291,86 @@ defmodule EmergenciasWeb.AlberguesLive do
 
   defp opciones_zona(zonas) do
     zonas
-    |> Enum.map(fn {codigo, zona} ->
-      {"#{Map.get(zona, :nombre, codigo)} · #{codigo}", codigo}
-    end)
+    |> Map.values()
+    |> Enum.map(&{"#{&1.nombre} · #{&1.codigo}", &1.codigo})
     |> Enum.sort_by(&elem(&1, 1))
   end
 
   defp opciones_albergue(albergues, usuario) do
     albergues
-    |> Demo.listar_albergues()
+    |> Map.values()
+    |> Enum.sort_by(& &1.codigo)
     |> Enum.filter(&LiveAuth.puede_gestionar_albergue?(usuario, &1))
     |> Enum.map(&{"#{&1.nombre} · #{&1.codigo}", &1.codigo})
   end
 
   defp albergues_visibles(albergues, usuario) do
     albergues
-    |> Demo.listar_albergues()
+    |> Map.values()
+    |> Enum.sort_by(& &1.codigo)
     |> Enum.filter(&(usuario.rol == :administrador or &1.zona_codigo == usuario.zona_principal))
   end
 
   defp puede_gestionar_alguno?(usuario, albergues),
-    do:
-      Enum.any?(
-        Demo.listar_albergues(albergues),
-        &LiveAuth.puede_gestionar_albergue?(usuario, &1)
-      )
+    do: Enum.any?(Map.values(albergues), &LiveAuth.puede_gestionar_albergue?(usuario, &1))
 
   defp error_codigo(_tipo, nil), do: nil
   defp error_codigo(_tipo, ""), do: nil
 
   defp error_codigo(tipo, codigo) do
-    if Demo.valido_codigo?(tipo, codigo),
+    if Codigos.valido?(tipo, codigo),
       do: nil,
-      else: "Formato inválido. Ejemplo: #{Demo.formato_codigo(tipo)}."
+      else: "Formato inválido. Ejemplo: #{Codigos.formato(tipo)}."
   end
+
+  defp cargar_datos(session_id) do
+    zonas = datos_o_vacio(API.consultar(session_id, :zonas)) |> Map.new(&{&1.codigo, &1})
+    resumenes_lista = datos_o_vacio(API.consultar(session_id, :albergues))
+
+    resumenes =
+      Map.new(resumenes_lista, fn resumen -> {resumen.albergue.codigo, resumen} end)
+
+    albergues =
+      Map.new(resumenes_lista, fn resumen -> {resumen.albergue.codigo, resumen.albergue} end)
+
+    personas =
+      API.consultar(session_id, {:personas, %{}})
+      |> datos_o_vacio()
+      |> Map.new(&{&1.id, %{id: &1.id, nombre: &1.nombre}})
+
+    estancias =
+      albergues
+      |> Map.keys()
+      |> Enum.flat_map(fn codigo ->
+        API.consultar(session_id, {:estancias_albergue, codigo}) |> datos_o_vacio()
+      end)
+      |> Map.new(&{&1.id, &1})
+
+    %{
+      zonas: zonas,
+      resumenes: resumenes,
+      albergues: albergues,
+      personas: personas,
+      estancias: estancias
+    }
+  end
+
+  defp datos_o_vacio({:ok, datos}), do: datos
+  defp datos_o_vacio(_error), do: []
+
+  defp assign_datos(socket, datos),
+    do: assign(socket, datos)
+
+  defp estancias_activas(estancias, codigo),
+    do: estancias |> Map.values() |> Enum.filter(&(&1.albergue_codigo == codigo))
+
+  defp nombre_persona(personas, id), do: get_in(personas, [id, :nombre]) || id
+
+  defp albergue_predeterminado(albergues),
+    do: albergues |> Map.keys() |> Enum.sort() |> List.first() || ""
+
+  defp zona_predeterminada(zonas), do: zonas |> Map.keys() |> Enum.sort() |> List.first() || ""
+
+  defp persona_predeterminada(personas),
+    do: personas |> Map.keys() |> Enum.sort() |> List.first() || ""
 end

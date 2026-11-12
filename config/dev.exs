@@ -19,8 +19,6 @@ config :emergencias, EmergenciasWeb.Endpoint,
     tailwind: {Tailwind, :install_and_run, [:emergencias, ~w(--watch)]}
   ]
 
-config :emergencias, :demo_admin_enabled, true
-
 # ## SSL Support
 #
 # In order to use HTTPS in development, a self-signed
