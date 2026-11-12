@@ -25,6 +25,7 @@ defmodule EmergenciasWeb.MafeComponents do
           <.enlace href="/albergues">Albergues</.enlace>
           <.enlace href="/personas" activo={@seccion == :personas}>Personas afectadas</.enlace>
           <.enlace href="/mensajes" activo={@seccion == :mensajes}>Mensajes familiares</.enlace>
+          <.enlace href="/mascotas" activo={@seccion == :mascotas}>Mascotas</.enlace>
         </nav>
         <main class="min-w-0">
           <p class="text-sm font-semibold uppercase tracking-widest text-orange-700">
