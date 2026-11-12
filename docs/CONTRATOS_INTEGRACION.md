@@ -121,6 +121,66 @@ alcance global. Los filtros nunca amplían el alcance de la sesión.
 `remitente` y `destinatario` son informativos y no acreditan identidad ni permisos.
 El coordinador genera ID, fecha y auditoría, y solo confirma después de persistir.
 
+Operaciones adicionales de mascotas aprobadas para la etapa 5:
+
+```elixir
+Emergencias.API.ejecutar(session_id, {:proponer_coincidencia_mascota, reporte_perdida_id, reporte_encontrada_id})
+Emergencias.API.consultar(session_id, {:reportes_mascotas, filtros})
+Emergencias.API.consultar(session_id, {:reporte_mascota, reporte_id})
+Emergencias.API.consultar(session_id, {:posibles_coincidencias_mascota, reporte_id})
+Emergencias.API.consultar(session_id, {:coincidencias_mascotas, filtros})
+```
+
+Los tipos son `:perdida` y `:encontrada`; el registro siempre inicia en `:activa`.
+ID, tipo, especie, características, zona existente y contacto son obligatorios;
+nombre, color y tamaño son opcionales. Los filtros de reportes son `tipo_reporte`,
+`especie`, `zona_codigo` y `estado`, con orden por ID. Para consultar activos se usa
+`estado: :activa`. Los filtros de coincidencias son `reporte_id`, `estado` y
+`zona_codigo`, con orden por fecha e ID. Las coincidencias usan `:propuesta` y
+`:confirmada` y se almacenan en `coincidencias_mascotas_por_id`, inicialmente `%{}`.
+Los snapshots anteriores conservan sus datos y reciben esa colección vacía.
+
+Las respuestas mantienen `{:ok, resultado}` / `{:error, motivo}`. Registrar devuelve
+un reporte; proponer y confirmar devuelven una coincidencia. Consultar un ID devuelve
+un reporte y las demás consultas devuelven listas. Un ID fuera del alcance devuelve
+`:no_encontrado`. Los tipos o especies incompatibles devuelven `:tipo_invalido`;
+proponer la misma pareja devuelve `:id_duplicado`; operar con un reporte resuelto
+devuelve `:ya_resuelto`. Ambos reportes deben estar dentro del alcance de sesión.
+Los campos de contacto no conceden permisos. Ciudadanos consultan y registran en
+su zona; voluntarios y coordinadores pueden proponer en su zona. Coordinadores
+confirman en su zona y administración propone y confirma globalmente.
+
+Consultar posibles coincidencias no cambia estados. Proponer registra una pareja y
+marca ambos reportes como `:posible_coincidencia`; confirmar crea o actualiza la
+pareja a `:confirmada`, con `confirmada_por` y fecha de confirmación, y resuelve ambos
+reportes en una sola mutación persistida. No se exige propuesta previa para conservar
+el comando de confirmación existente. Las propuestas alternativas se conservan para
+consulta, pero no pueden confirmarse si algún reporte ya fue resuelto. El dominio
+ofrece las transiciones acordadas; no se agrega un comando de cambio arbitrario de
+estado. Los estados expuestos se actualizan mediante propuesta y confirmación.
+
+Ponderación de similitud: especie 30, color 20, tamaño 15, características 20,
+zona 10 y nombre 5 (máximo 100). Se exigen tipos pérdida/hallazgo y especie compatible;
+se excluyen resueltos. Se normalizan minúsculas, tildes y espacios. Para características
+se usa `20 * |palabras comunes| / |palabras distintas de ambos textos|`, con conjuntos
+de palabras alfanuméricas, sin `de, del, la, el, los, las, y, con, un, una, en`.
+Se redondea a dos decimales. Los demás criterios usan igualdad normalizada no vacía.
+Vacíos aportan cero, sin redistribuir pesos. Se devuelve puntaje y desglose de los seis
+criterios, ordenando por puntaje descendente e ID del candidato en empates. Ningún
+puntaje confirma automáticamente una pareja.
+
+Cambios que deben comunicarse a Sergio y Cristian antes de integrar en la rama principal:
+
+- Etapa 3: comando y consultas de personas, historial consistente y evidencia de autoría.
+- Etapa 4: operaciones de mensajes y aclaración de entrega exclusiva de roles autorizados.
+- Etapa 5: operaciones, tipos, filtros, puntaje, estados de coincidencia y nueva colección.
+- Persistencia: precargar módulos de dominio conocidos antes de decodificar los átomos
+  del snapshot, para recuperar datos también en un proceso nuevo. No cambia el JSON
+  ni permite crear átomos a partir de texto arbitrario.
+- Corrección mínima de `Usuarios`: agregar `:proponer_coincidencia` al voluntario y
+  `:confirmar_coincidencia` al coordinador para cumplir la matriz ya aprobada. No cambia
+  permisos de personas, mensajes u otros dominios.
+
 Consultas de necesidades y recursos:
 
 ```elixir

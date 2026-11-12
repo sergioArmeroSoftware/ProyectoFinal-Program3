@@ -11,6 +11,7 @@ defmodule Emergencias.Usuarios do
       :consultar_zona,
       :cambiar_estado_persona,
       :atender_mensaje,
+      :proponer_coincidencia,
       :gestionar_albergue
     ],
     coordinador: [
@@ -21,6 +22,7 @@ defmodule Emergencias.Usuarios do
       :gestionar_albergue,
       :asignar_recursos,
       :transferir_recursos,
+      :confirmar_coincidencia,
       :proponer_coincidencia
     ],
     administrador: [

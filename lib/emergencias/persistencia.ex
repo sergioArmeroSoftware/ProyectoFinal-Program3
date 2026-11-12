@@ -3,6 +3,21 @@ defmodule Emergencias.Persistencia do
 
   alias Emergencias.Estado
 
+  # Carga los vocabularios conocidos antes de usar String.to_existing_atom/1.
+  # En un proceso nuevo, referenciar un módulo no carga todavía sus átomos.
+  @dominios [
+    Emergencias.Usuarios,
+    Emergencias.Zonas,
+    Emergencias.Albergues,
+    Emergencias.Necesidades,
+    Emergencias.Recursos,
+    Emergencias.Personas,
+    Emergencias.Mensajes,
+    Emergencias.Mascotas,
+    Emergencias.CoincidenciasMascotas,
+    Emergencias.EstadoServidor
+  ]
+
   @structs [
     Emergencias.Estado,
     Emergencias.Usuario,
@@ -63,7 +78,8 @@ defmodule Emergencias.Persistencia do
   def guardar(_estado, _path), do: {:error, :error_persistencia}
 
   defp decodificar(contenido) do
-    with {:ok, datos} <- Jason.decode(contenido),
+    with true <- Enum.all?(@dominios, &Code.ensure_loaded?/1),
+         {:ok, datos} <- Jason.decode(contenido),
          {:ok, %Estado{sesiones: sesiones} = estado} <- decodificar_valor(datos),
          true <- sesiones == %{} do
       {:ok, estado}

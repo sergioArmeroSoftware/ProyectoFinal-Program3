@@ -5,6 +5,8 @@ defmodule Emergencias.EstadoServidor do
   alias Emergencias.{
     Albergue,
     Albergues,
+    Mascotas,
+    CoincidenciasMascotas,
     Mensajes,
     AsignacionRecurso,
     Estado,
@@ -576,6 +578,55 @@ defmodule Emergencias.EstadoServidor do
     end
   end
 
+  defp ejecutar_comando(estado, session_id, actor, {:reportar_mascota, attrs})
+       when is_map(attrs) do
+    zona = valor(attrs, :zona_codigo) |> normalizar_texto()
+
+    with :ok <- autorizar_reporte(estado, session_id, actor, zona),
+         id <- nuevo_id("RM", estado.reportes_mascotas_por_id),
+         {:ok, reportes} <-
+           Mascotas.registrar(
+             estado.reportes_mascotas_por_id,
+             estado.zonas_por_codigo,
+             Map.put(attrs, :id, id)
+           ) do
+      actualizado = %{estado | reportes_mascotas_por_id: reportes}
+      actualizado = registrar_actividad(actualizado, actor.username, :reportar_mascota, id)
+      {:ok, actualizado, Map.fetch!(reportes, id)}
+    end
+  end
+
+  defp ejecutar_comando(estado, session_id, actor, {operacion, perdida_id, encontrada_id})
+       when operacion in [:proponer_coincidencia_mascota, :confirmar_coincidencia_mascota] do
+    permiso =
+      if operacion == :confirmar_coincidencia_mascota or actor.rol == :administrador,
+        do: :confirmar_coincidencia,
+        else: :proponer_coincidencia
+
+    with {:ok, perdida} <- reporte_visible(estado, session_id, actor, perdida_id),
+         {:ok, encontrada} <- reporte_visible(estado, session_id, actor, encontrada_id),
+         :ok <- autorizar_zona(estado, session_id, permiso, perdida.zona_codigo),
+         :ok <- autorizar_zona(estado, session_id, permiso, encontrada.zona_codigo),
+         contexto <- %{
+           id: nuevo_id("CM", estado.coincidencias_mascotas_por_id),
+           fecha: ahora(),
+           usuario_id: actor.username
+         },
+         {:ok, resultado} <-
+           operar_coincidencia(operacion, estado, perdida_id, encontrada_id, contexto) do
+      actualizado = %{
+        estado
+        | reportes_mascotas_por_id: resultado.reportes,
+          coincidencias_mascotas_por_id: resultado.coincidencias
+      }
+
+      actualizado =
+        registrar_actividad(actualizado, actor.username, operacion, resultado.coincidencia.id)
+
+      {:ok, actualizado, resultado.coincidencia}
+    end
+  end
+
   defp ejecutar_comando(_estado, _session_id, _actor, comando)
        when is_tuple(comando) and tuple_size(comando) > 0 and
               elem(comando, 0) in [
@@ -728,6 +779,42 @@ defmodule Emergencias.EstadoServidor do
     end
   end
 
+  defp consultar_estado(estado, session_id, actor, {:reportes_mascotas, filtros})
+       when is_map(filtros) do
+    with {:ok, filtros} <- filtros_por_zona(estado, session_id, actor, filtros) do
+      Mascotas.listar(estado.reportes_mascotas_por_id, filtros)
+    end
+  end
+
+  defp consultar_estado(estado, session_id, actor, {:reporte_mascota, id}),
+    do: reporte_visible(estado, session_id, actor, id)
+
+  defp consultar_estado(estado, session_id, actor, {:posibles_coincidencias_mascota, id}) do
+    with {:ok, _reporte} <- reporte_visible(estado, session_id, actor, id),
+         {:ok, reportes} <- consultar_estado(estado, session_id, actor, {:reportes_mascotas, %{}}) do
+      reportes |> Map.new(&{&1.id, &1}) |> CoincidenciasMascotas.buscar(id)
+    end
+  end
+
+  defp consultar_estado(estado, session_id, actor, {:coincidencias_mascotas, filtros})
+       when is_map(filtros) do
+    with {:ok, filtros} <- filtros_por_zona(estado, session_id, actor, filtros),
+         {:ok, reportes} <-
+           Mascotas.listar(
+             estado.reportes_mascotas_por_id,
+             Map.take(filtros, [:zona_codigo, "zona_codigo"])
+           ) do
+      ids = MapSet.new(reportes, & &1.id)
+
+      estado.coincidencias_mascotas_por_id
+      |> Enum.filter(fn {_id, c} ->
+        MapSet.member?(ids, c.reporte_perdida_id) and MapSet.member?(ids, c.reporte_encontrada_id)
+      end)
+      |> Map.new()
+      |> CoincidenciasMascotas.listar(filtros)
+    end
+  end
+
   defp consultar_estado(_estado, _session_id, _actor, _consulta),
     do: {:error, :consulta_no_reconocida}
 
@@ -754,6 +841,48 @@ defmodule Emergencias.EstadoServidor do
          else: {:error, :no_encontrado}
     end
   end
+
+  defp reporte_visible(estado, session_id, actor, id) do
+    with :ok <- autorizar_consulta(estado, session_id, actor),
+         {:ok, reporte} <- Mascotas.obtener(estado.reportes_mascotas_por_id, id) do
+      if actor.rol == :administrador or
+           (is_binary(actor.zona_principal) and actor.zona_principal == reporte.zona_codigo),
+         do: {:ok, reporte},
+         else: {:error, :no_encontrado}
+    end
+  end
+
+  defp operar_coincidencia(
+         :proponer_coincidencia_mascota,
+         estado,
+         perdida_id,
+         encontrada_id,
+         contexto
+       ),
+       do:
+         CoincidenciasMascotas.proponer(
+           estado.reportes_mascotas_por_id,
+           estado.coincidencias_mascotas_por_id,
+           perdida_id,
+           encontrada_id,
+           contexto
+         )
+
+  defp operar_coincidencia(
+         :confirmar_coincidencia_mascota,
+         estado,
+         perdida_id,
+         encontrada_id,
+         contexto
+       ),
+       do:
+         CoincidenciasMascotas.confirmar(
+           estado.reportes_mascotas_por_id,
+           estado.coincidencias_mascotas_por_id,
+           perdida_id,
+           encontrada_id,
+           contexto
+         )
 
   defp mensaje_propio?(actividad, mensaje_id, username) do
     Enum.any?(actividad, fn
