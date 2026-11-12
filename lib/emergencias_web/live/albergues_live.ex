@@ -104,7 +104,7 @@ defmodule EmergenciasWeb.AlberguesLive do
     >
       <div class="mt-6">
         <p class="text-sm font-semibold uppercase tracking-widest text-orange-700">
-          Módulo de Sergio Armero Salazar
+          Gestión de albergues
         </p>
 
         <div class="mt-1 flex flex-wrap items-end justify-between gap-3">

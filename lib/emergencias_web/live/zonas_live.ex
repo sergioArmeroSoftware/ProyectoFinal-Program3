@@ -134,10 +134,9 @@ defmodule EmergenciasWeb.ZonasLive do
       csrf_token={@csrf_token}
       flash={@flash}
     >
-      <AppShell.notice message="Prototipo: los cambios viven en esta conexión LiveView y no se guardan en el archivo todavía." />
       <div class="mt-6">
         <p class="text-sm font-semibold uppercase tracking-widest text-orange-700">
-          Módulo de Sergio Armero Salazar
+          Organización territorial
         </p>
 
         <div class="mt-1 flex flex-wrap items-end justify-between gap-3">

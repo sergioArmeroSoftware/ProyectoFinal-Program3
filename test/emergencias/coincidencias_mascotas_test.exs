@@ -82,6 +82,28 @@ defmodule Emergencias.CoincidenciasMascotasTest do
     assert desglose.nombre == 0
   end
 
+  test "interpreta tamaños equivalentes y da coincidencia parcial a tonos castaños", c do
+    encontrada = %{
+      c.encontrada
+      | color: "café",
+        tamano: "pequeña",
+        caracteristicas: ""
+    }
+
+    perdida = %{
+      c.perdida
+      | color: "caramelo",
+        tamano: "pequeñita",
+        caracteristicas: ""
+    }
+
+    assert {:ok, %{puntaje: 73.0, desglose: %{color: 13.0, tamano: 15}}} =
+             CoincidenciasMascotas.calcular_similitud(perdida, encontrada)
+
+    assert {:ok, %{desglose: %{color: 0}}} =
+             CoincidenciasMascotas.calcular_similitud(perdida, %{encontrada | color: "negro"})
+  end
+
   test "rechaza tipos y especies incompatibles y reportes resueltos", c do
     assert {:error, :tipo_invalido} =
              CoincidenciasMascotas.calcular_similitud(c.perdida, c.perdida)

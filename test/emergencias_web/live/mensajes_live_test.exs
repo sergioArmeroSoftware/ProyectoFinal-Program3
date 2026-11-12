@@ -278,7 +278,7 @@ defmodule EmergenciasWeb.MensajesLiveTest do
     assert has_element?(panel, "nav a[href='/mensajes']", "Mensajes")
 
     panel
-    |> element("nav a[href='/mensajes']")
+    |> element("nav[aria-label='Navegación principal'] a[href='/mensajes']")
     |> render_click()
     |> follow_redirect(conn, "/mensajes")
 
@@ -287,7 +287,7 @@ defmodule EmergenciasWeb.MensajesLiveTest do
     assert {:ok, mensajes, _html} = abrir(c.conn, c.ana)
 
     for ruta <- ["/", "/usuarios", "/zonas", "/albergues", "/personas"] do
-      assert has_element?(mensajes, "nav a[href='#{ruta}']")
+      assert has_element?(mensajes, "nav[aria-label='Módulos'] a[href='#{ruta}']")
     end
   end
 

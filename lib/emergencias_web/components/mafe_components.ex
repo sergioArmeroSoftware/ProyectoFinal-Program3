@@ -1,5 +1,5 @@
 defmodule EmergenciasWeb.MafeComponents do
-  @moduledoc "Componentes visuales de los módulos de Maria Fernanda, con el estilo del panel."
+  @moduledoc "Componentes compartidos para las vistas de atención comunitaria."
   use EmergenciasWeb, :html
 
   attr :titulo, :string, required: true
@@ -12,7 +12,7 @@ defmodule EmergenciasWeb.MafeComponents do
   @doc "Conserva el encabezado, navegación lateral y distribución del panel existente."
   def modulo(assigns) do
     ~H"""
-    <div class="min-h-screen bg-slate-50 text-slate-900">
+    <div class="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       <header class="bg-slate-950 text-white">
         <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <a href="/" class="text-lg font-bold tracking-wide">Emergencias UQ</a>
@@ -31,8 +31,8 @@ defmodule EmergenciasWeb.MafeComponents do
         </div>
       </header>
 
-      <div class="mx-auto grid max-w-6xl gap-8 px-6 py-10 md:grid-cols-[230px_1fr]">
-        <nav class="space-y-2" aria-label="Módulos">
+      <div class="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-4 py-6 sm:px-6 sm:py-10 md:grid-cols-[210px_minmax(0,1fr)] md:gap-8">
+        <nav class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-1" aria-label="Módulos">
           <.enlace href="/">Resumen</.enlace>
 
           <.enlace href="/usuarios">Usuarios y permisos</.enlace>
@@ -52,9 +52,9 @@ defmodule EmergenciasWeb.MafeComponents do
           <.enlace href="/recursos" activo={@seccion == :recursos}>Recursos</.enlace>
         </nav>
 
-        <main class="min-w-0">
+        <main class="min-w-0 overflow-x-hidden">
           <p class="text-sm font-semibold uppercase tracking-widest text-orange-700">
-            MÓDULO DE MARIA FERNANDA MEJÍA OCAMPO
+            Atención comunitaria
           </p>
 
           <h1 class="mt-2 text-3xl font-bold">{@titulo}</h1>
@@ -64,6 +64,11 @@ defmodule EmergenciasWeb.MafeComponents do
           <div class="mt-8 space-y-6">{render_slot(@inner_block)}</div>
         </main>
       </div>
+      <footer class="mt-auto border-t border-slate-200 bg-white">
+        <div class="mx-auto max-w-6xl px-4 py-4 text-xs text-slate-500 sm:px-6">
+          Proyecto final · Programación III · Universidad del Quindío
+        </div>
+      </footer>
     </div>
     """
   end

@@ -105,7 +105,7 @@ defmodule EmergenciasWeb.UsuariosLive do
       <div class="mt-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p class="text-sm font-semibold uppercase tracking-widest text-orange-700">
-            Módulo de Sergio Armero Salazar
+            Administración del sistema
           </p>
 
           <h1 class="mt-1 text-3xl font-black">Usuarios y permisos</h1>
@@ -120,7 +120,7 @@ defmodule EmergenciasWeb.UsuariosLive do
           class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"
         >
           <span class="text-slate-500">Cuentas en la vista</span>
-          <strong class="ml-2 text-lg">{map_size(@usuarios)}</strong>
+          <strong class="ml-2 text-lg">{length(@usuarios)}</strong>
         </div>
       </div>
 
@@ -167,7 +167,7 @@ defmodule EmergenciasWeb.UsuariosLive do
         <AppShell.panel
           :if={LiveAuth.administrador?(@current_user)}
           title="Cuentas registradas"
-          description="Cuentas registradas durante esta ejecución de la aplicación."
+          description="Cuentas y roles guardados por el coordinador."
         >
           <div class="overflow-x-auto">
             <table class="w-full min-w-[540px] text-left text-sm">
@@ -247,7 +247,7 @@ defmodule EmergenciasWeb.UsuariosLive do
           </div>
 
           <p class="mt-4 text-xs leading-5 text-slate-500">
-            El cambio de rol pasa por la misma regla de dominio que exige un administrador activo. En el sistema integrado, la identidad del solicitante vendrá de la sesión validada por el coordinador.
+            Cada cambio de rol se valida en el coordinador usando la sesión activa del administrador.
           </p>
         </AppShell.panel>
       </div>

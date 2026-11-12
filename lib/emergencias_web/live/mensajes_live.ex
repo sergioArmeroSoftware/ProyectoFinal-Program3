@@ -154,10 +154,6 @@ defmodule EmergenciasWeb.MensajesLive do
           Necesitas una sesión activa para consultar y crear mensajes familiares.
         </p>
 
-        <p class="mt-2 text-sm text-slate-600">
-          El inicio de sesión web está pendiente de integración en Usuarios y permisos.
-        </p>
-
         <a href="/usuarios" class="mt-4 inline-block text-sm font-semibold text-orange-700">Usuarios y permisos →</a>
         <button
           :if={@session_id}

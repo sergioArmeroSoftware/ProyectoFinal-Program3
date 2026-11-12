@@ -2,6 +2,8 @@ defmodule EmergenciasWeb.NecesidadesLive do
   @moduledoc "Pantalla para registrar, filtrar y atender necesidades."
   use EmergenciasWeb, :live_view
 
+  alias EmergenciasWeb.AppShell
+
   @tipos [
     {"Agua", "agua"},
     {"Alimentos", "alimentos"},
@@ -29,6 +31,7 @@ defmodule EmergenciasWeb.NecesidadesLive do
       |> assign(:session_id, Map.get(session, "session_id"))
       |> assign(:necesidades, [])
       |> assign(:recursos, [])
+      |> assign(:zonas, [])
       |> assign(:mensaje, nil)
       |> assign(:error, nil)
       |> assign(:tipos, @tipos)
@@ -105,14 +108,16 @@ defmodule EmergenciasWeb.NecesidadesLive do
            {:necesidades, socket.assigns.filtros}
          ) do
       {:ok, necesidades} ->
-        case Emergencias.API.consultar(socket.assigns.session_id, {:recursos, %{}}) do
-          {:ok, recursos} ->
-            assign(socket, necesidades: necesidades, recursos: recursos, error: nil)
-
+        with {:ok, recursos} <-
+               Emergencias.API.consultar(socket.assigns.session_id, {:recursos, %{}}),
+             {:ok, zonas} <- Emergencias.API.consultar(socket.assigns.session_id, :zonas) do
+          assign(socket, necesidades: necesidades, recursos: recursos, zonas: zonas, error: nil)
+        else
           {:error, motivo} ->
             assign(socket,
               necesidades: necesidades,
               recursos: [],
+              zonas: [],
               error: error_message(motivo)
             )
         end
@@ -162,18 +167,17 @@ defmodule EmergenciasWeb.NecesidadesLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <main class="min-h-screen bg-slate-50 text-slate-900">
-      <header class="bg-slate-950 px-6 py-5 text-white">
-        <div class="mx-auto flex max-w-6xl items-center justify-between">
-          <a href="/" class="font-bold">Emergencias UQ</a>
-          <a href="/recursos" class="text-sm text-orange-200 hover:text-white">Ir a recursos</a>
-        </div>
-      </header>
-
-      <div class="mx-auto max-w-6xl space-y-8 px-6 py-10">
+    <AppShell.shell
+      title="Necesidades"
+      current_path="/necesidades"
+      current_user={@current_user}
+      csrf_token={@csrf_token}
+      flash={@flash}
+    >
+      <div class="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-10">
         <div>
           <p class="text-sm font-semibold uppercase tracking-widest text-orange-700">
-            Módulo de necesidades
+            Gestión de atención
           </p>
 
           <h1 class="mt-2 text-3xl font-bold">Necesidades y prioridades</h1>
@@ -207,11 +211,16 @@ defmodule EmergenciasWeb.NecesidadesLive do
 
             <label class="grid gap-1 text-sm font-medium">
               Zona
-              <input
+              <select
                 name="necesidad[zona_codigo]"
                 required
                 class="rounded-lg border border-slate-300 p-2"
-              />
+              >
+                <option value="">Selecciona una zona</option>
+                <option :for={zona <- @zonas} value={zona.codigo}>
+                  {zona.nombre} ({zona.codigo})
+                </option>
+              </select>
             </label>
 
             <label class="grid gap-1 text-sm font-medium">
@@ -268,11 +277,19 @@ defmodule EmergenciasWeb.NecesidadesLive do
             </div>
 
             <form :if={@session_id} phx-change="filtrar" class="grid gap-3 sm:grid-cols-4">
-              <input
+              <select
                 name="filtros[zona_codigo]"
-                placeholder="Zona"
                 class="rounded-lg border border-slate-300 p-2 text-sm"
-              />
+              >
+                <option value="">Todas las zonas</option>
+                <option
+                  :for={zona <- @zonas}
+                  value={zona.codigo}
+                  selected={@filtros["zona_codigo"] == zona.codigo}
+                >
+                  {zona.nombre} ({zona.codigo})
+                </option>
+              </select>
               <select name="filtros[tipo]" class="rounded-lg border border-slate-300 p-2 text-sm">
                 <option value="">Todos los tipos</option>
 
@@ -354,7 +371,7 @@ defmodule EmergenciasWeb.NecesidadesLive do
                           :for={recurso <- recursos_de_zona(@recursos, necesidad.zona_codigo)}
                           value={recurso.codigo}
                         >
-                          {recurso.nombre} ({recurso.cantidad_disponible} {recurso.unidad})
+                          {recurso.codigo} · {recurso.nombre} ({recurso.cantidad_disponible} {recurso.unidad})
                         </option>
                       </select>
 
@@ -396,7 +413,7 @@ defmodule EmergenciasWeb.NecesidadesLive do
           </div>
         </section>
       </div>
-    </main>
+    </AppShell.shell>
     """
   end
 end

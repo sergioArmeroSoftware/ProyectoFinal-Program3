@@ -2,6 +2,7 @@ defmodule Emergencias.Recursos do
   @moduledoc "Reglas puras para inventario, asignaciones, devoluciones y transferencias."
 
   alias Emergencias.Recurso
+  alias Emergencias.Codigos
 
   @doc "Registra inventario en una zona y ubicación existentes."
   def registrar(recursos, zonas, attrs)
@@ -24,6 +25,9 @@ defmodule Emergencias.Recursos do
 
       not (is_integer(recurso.cantidad_disponible) and recurso.cantidad_disponible >= 0) ->
         {:error, :cantidad_invalida}
+
+      not Codigos.valido?(:recurso, recurso.codigo) ->
+        {:error, :codigo_invalido}
 
       not Map.has_key?(zonas, recurso.zona_codigo) ->
         {:error, :zona_no_encontrada}

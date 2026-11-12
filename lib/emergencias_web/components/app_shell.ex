@@ -11,9 +11,9 @@ defmodule EmergenciasWeb.AppShell do
 
   def shell(assigns) do
     ~H"""
-    <div class="min-h-screen bg-slate-50 text-slate-900">
+    <div class="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       <header class="bg-slate-950 text-white shadow">
-        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
+        <div class="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-8">
           <a href="/" class="flex items-center gap-3">
             <span class="grid size-10 place-items-center rounded-xl bg-orange-600 text-xl font-black">E</span>
             <span>
@@ -22,7 +22,10 @@ defmodule EmergenciasWeb.AppShell do
             </span>
           </a>
 
-          <nav class="flex flex-wrap items-center gap-1 text-sm" aria-label="Navegación principal">
+          <nav
+            class="hidden flex-wrap items-center gap-1 text-sm md:flex"
+            aria-label="Navegación principal"
+          >
             <.nav_link href="/" current={@current_path}>Inicio</.nav_link>
             <.nav_link :if={is_nil(@current_user)} href="/acceso" current={@current_path}>Acceso</.nav_link>
             <.nav_link :if={@current_user} href="/usuarios" current={@current_path}>Usuarios</.nav_link>
@@ -49,10 +52,43 @@ defmodule EmergenciasWeb.AppShell do
               </form>
             </div>
           </nav>
+
+          <details :if={@current_user} class="group relative ml-auto md:hidden">
+            <summary class="cursor-pointer list-none rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold">
+              Menú <span aria-hidden="true">☰</span>
+            </summary>
+            <nav
+              class="absolute right-0 z-20 mt-2 grid w-64 grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-xl"
+              aria-label="Navegación móvil"
+            >
+              <.mobile_link href="/" current={@current_path}>Inicio</.mobile_link>
+              <.mobile_link href="/usuarios" current={@current_path}>Usuarios</.mobile_link>
+              <.mobile_link href="/zonas" current={@current_path}>Zonas</.mobile_link>
+              <.mobile_link href="/albergues" current={@current_path}>Albergues</.mobile_link>
+              <.mobile_link href="/personas" current={@current_path}>Personas</.mobile_link>
+              <.mobile_link href="/mensajes" current={@current_path}>Mensajes</.mobile_link>
+              <.mobile_link href="/mascotas" current={@current_path}>Mascotas</.mobile_link>
+              <.mobile_link href="/necesidades" current={@current_path}>Necesidades</.mobile_link>
+              <.mobile_link href="/recursos" current={@current_path}>Recursos</.mobile_link>
+              <form
+                action="/sesion"
+                method="post"
+                class="col-span-2 mt-2 border-t border-slate-200 pt-2"
+              >
+                <input type="hidden" name="_method" value="delete" />
+                <input type="hidden" name="_csrf_token" value={@csrf_token} />
+                <button class="w-full rounded-lg bg-slate-900 px-3 py-2 text-left font-semibold text-white">Cerrar sesión · {@current_user.nombre_completo}</button>
+              </form>
+            </nav>
+          </details>
+
+          <nav :if={is_nil(@current_user)} class="md:hidden" aria-label="Acceso móvil">
+            <.nav_link href="/acceso" current={@current_path}>Acceso</.nav_link>
+          </nav>
         </div>
       </header>
 
-      <main class="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
+      <main class="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 py-6 sm:px-8 sm:py-10">
         <.notice
           :if={Phoenix.Flash.get(@flash, :error)}
           message={Phoenix.Flash.get(@flash, :error)}
@@ -60,13 +96,27 @@ defmodule EmergenciasWeb.AppShell do
         /> {render_slot(@inner_block)}
       </main>
 
-      <footer class="border-t border-slate-200 bg-white">
+      <footer class="mt-auto border-t border-slate-200 bg-white">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-5 py-4 text-xs text-slate-500 sm:px-8">
           <span>Proyecto final · Programación III · Universidad del Quindío</span>
-          <span>Interfaz de trabajo en desarrollo</span>
+          <span>Coordinación y atención de emergencias</span>
         </div>
       </footer>
     </div>
+    """
+  end
+
+  attr :href, :string, required: true
+  attr :current, :string, required: true
+  slot :inner_block, required: true
+
+  defp mobile_link(assigns) do
+    ~H"""
+    <a
+      href={@href}
+      aria-current={@current == @href && "page"}
+      class="rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-orange-50"
+    >{render_slot(@inner_block)}</a>
     """
   end
 
@@ -100,7 +150,7 @@ defmodule EmergenciasWeb.AppShell do
 
   def panel(assigns) do
     ~H"""
-    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <section class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <div class="mb-5">
         <h2 class="text-lg font-bold">{@title}</h2>
 

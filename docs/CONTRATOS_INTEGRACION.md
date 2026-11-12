@@ -22,7 +22,7 @@ Las siguientes entidades se modelan como structs Elixir. Las colecciones se mant
 | `Sector` | `codigo`, `nombre`, `puntos` | contenido por una zona |
 | `PuntoAtencion` | `codigo`, `nombre`, `personas_estimadas`, `estado` | contenido por un sector |
 | `Necesidad` | `id`, `tipo`, `descripcion`, `cantidad`, `prioridad`, `zona_codigo`, `responsable_id`, `estado` | `id` único; zona y responsable por ID |
-| `Recurso` | `codigo`, `nombre`, `categoria`, `cantidad_disponible`, `unidad`, `ubicacion`, `zona_codigo` | `codigo` único |
+| `Recurso` | `codigo`, `nombre`, `categoria`, `cantidad_disponible`, `unidad`, `ubicacion`, `zona_codigo` | código único con formato `R-01` (`R-` y dos dígitos) |
 | `AsignacionRecurso` | `id`, `necesidad_id`, `recurso_codigo`, `cantidad`, `estado`, `asignado_por`, `fecha` | enlaza una necesidad con un recurso |
 | `MovimientoRecurso` | `id`, `recurso_codigo`, `origen`, `destino`, `cantidad`, `fecha`, `usuario_id` | historial de inventario |
 | `PersonaAfectada` | `id`, `nombre`, `documento_referencia`, `edad`, `zona_codigo`, `estado` | `id` único |
@@ -176,11 +176,12 @@ ofrece las transiciones acordadas; no se agrega un comando de cambio arbitrario 
 estado. Los estados expuestos se actualizan mediante propuesta y confirmación.
 
 Ponderación de similitud: especie 30, color 20, tamaño 15, características 20,
-zona 10 y nombre 5 (máximo 100). Se exigen tipos pérdida/hallazgo y especie compatible;
+zona 10 y nombre 5 (máximo 100). Tamaños equivalentes reconocen variantes comunes;
+tonos castaños relacionados reciben el 65 % del peso de color. Se exigen tipos pérdida/hallazgo y especie compatible;
 se excluyen resueltos. Se normalizan minúsculas, tildes y espacios. Para características
 se usa `20 * |palabras comunes| / |palabras distintas de ambos textos|`, con conjuntos
 de palabras alfanuméricas, sin `de, del, la, el, los, las, y, con, un, una, en`.
-Se redondea a dos decimales. Los demás criterios usan igualdad normalizada no vacía.
+Se redondea a dos decimales. Especie, zona y nombre usan igualdad normalizada no vacía.
 Vacíos aportan cero, sin redistribuir pesos. Se devuelve puntaje y desglose de los seis
 criterios, ordenando por puntaje descendente e ID del candidato en empates. Ningún
 puntaje confirma automáticamente una pareja.

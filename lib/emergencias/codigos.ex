@@ -5,7 +5,8 @@ defmodule Emergencias.Codigos do
     zona: ~r/\AZ-[0-9]{2}\z/,
     sector: ~r/\ASEC-[0-9]{2}\z/,
     punto_atencion: ~r/\APA-[0-9]{2}\z/,
-    albergue: ~r/\AA-[0-9]{2}\z/
+    albergue: ~r/\AA-[0-9]{2}\z/,
+    recurso: ~r/\AR-[0-9]{2}\z/
   }
 
   @doc "Comprueba si un valor respeta el formato asignado al tipo de código."
@@ -23,5 +24,6 @@ defmodule Emergencias.Codigos do
   def formato(:sector), do: "SEC-01 (SEC, guion y dos dígitos)"
   def formato(:punto_atencion), do: "PA-01 (PA, guion y dos dígitos)"
   def formato(:albergue), do: "A-01 (A, guion y dos dígitos)"
+  def formato(:recurso), do: "R-01 (R, guion y dos dígitos)"
   def formato(_tipo), do: "código no reconocido"
 end

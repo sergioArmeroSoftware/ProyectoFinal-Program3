@@ -360,6 +360,9 @@ defmodule EmergenciasWeb.MascotasLive do
     ~H"""
     <div class="mt-4 text-sm">
       <p class="font-semibold text-orange-700">Similitud: {@puntaje} / 100 puntos</p>
+      <p class="mt-1 text-xs text-slate-500">
+        Reconoce variantes de tamaño como «pequeña» y «pequeñita»; los tonos de color relacionados reciben puntaje parcial.
+      </p>
 
       <dl class="mt-3 grid gap-2 sm:grid-cols-2">
         <div
@@ -396,10 +399,6 @@ defmodule EmergenciasWeb.MascotasLive do
       <.tarjeta :if={is_nil(@usuario)} id="acceso-restringido" titulo="Acceso restringido">
         <p class="text-sm text-slate-600">
           Necesitas una sesión activa para consultar y registrar reportes de mascotas.
-        </p>
-
-        <p class="mt-2 text-sm text-slate-600">
-          El inicio de sesión web está pendiente de integración en Usuarios y permisos.
         </p>
 
         <a href="/usuarios" class="mt-4 inline-block text-sm font-semibold text-orange-700">Usuarios y permisos →</a>
@@ -527,20 +526,52 @@ defmodule EmergenciasWeb.MascotasLive do
 
             <label class="grid gap-1 text-sm font-medium">
               Color (opcional)
-              <input
-                name="mascota[color]"
-                value={@registro["color"]}
-                class="rounded-lg border border-slate-300 p-2"
-              />
+              <select name="mascota[color]" class="rounded-lg border border-slate-300 p-2">
+                <option value="">Sin información</option>
+                <option
+                  :for={
+                    color <- [
+                      "negro",
+                      "blanco",
+                      "gris",
+                      "café",
+                      "caramelo",
+                      "canela",
+                      "marrón",
+                      "chocolate",
+                      "dorado",
+                      "atigrado",
+                      "otro"
+                    ]
+                  }
+                  value={color}
+                  selected={@registro["color"] == color}
+                >
+                  {String.capitalize(color)}
+                </option>
+              </select>
             </label>
 
             <label class="grid gap-1 text-sm font-medium">
               Tamaño (opcional)
-              <input
-                name="mascota[tamano]"
-                value={@registro["tamano"]}
-                class="rounded-lg border border-slate-300 p-2"
-              />
+              <select name="mascota[tamano]" class="rounded-lg border border-slate-300 p-2">
+                <option value="">Sin información</option>
+                <option
+                  :for={
+                    {etiqueta, tamano} <- [
+                      {"Muy pequeña", "muy pequeña"},
+                      {"Pequeña", "pequeña"},
+                      {"Mediana", "mediano"},
+                      {"Grande", "grande"},
+                      {"Muy grande", "muy grande"}
+                    ]
+                  }
+                  value={tamano}
+                  selected={@registro["tamano"] == tamano}
+                >
+                  {etiqueta}
+                </option>
+              </select>
             </label>
 
             <label class="grid gap-1 text-sm font-medium">

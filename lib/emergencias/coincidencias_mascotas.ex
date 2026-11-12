@@ -3,21 +3,15 @@ defmodule Emergencias.CoincidenciasMascotas do
   alias Emergencias.{CoincidenciaMascota, Mascotas, ReporteMascota}
 
   @pesos %{especie: 30, color: 20, tamano: 15, caracteristicas: 20, zona_codigo: 10, nombre: 5}
+  @factor_tonos_relacionados 0.65
 
-  @doc "Compara pérdida y hallazgo: igualdad normalizada y Jaccard de palabras para características."
+  @doc "Compara pérdida y hallazgo con equivalencias comunes y Jaccard para características."
   def calcular_similitud(%ReporteMascota{} = perdida, %ReporteMascota{} = encontrada) do
     with :ok <- validar_pareja(perdida, encontrada) do
       desglose =
         Map.new(@pesos, fn {campo, peso} ->
           puntos =
-            if campo == :caracteristicas,
-              do:
-                puntos_caracteristicas(perdida.caracteristicas, encontrada.caracteristicas, peso),
-              else:
-                if(iguales?(Map.get(perdida, campo), Map.get(encontrada, campo)),
-                  do: peso,
-                  else: 0
-                )
+            puntos_campo(campo, Map.get(perdida, campo), Map.get(encontrada, campo), peso)
 
           {campo, puntos}
         end)
@@ -26,6 +20,68 @@ defmodule Emergencias.CoincidenciasMascotas do
        %{puntaje: desglose |> Map.values() |> Enum.sum() |> Float.round(2), desglose: desglose}}
     end
   end
+
+  defp puntos_campo(:caracteristicas, a, b, peso), do: puntos_caracteristicas(a, b, peso)
+
+  defp puntos_campo(:tamano, a, b, peso) do
+    categoria = categoria_tamano(a)
+
+    if categoria != "" and categoria == categoria_tamano(b),
+      do: peso,
+      else: 0
+  end
+
+  defp puntos_campo(:color, a, b, peso) do
+    color_a = categoria_color(a)
+    color_b = categoria_color(b)
+
+    cond do
+      color_a == "" or color_b == "" ->
+        0
+
+      color_a == color_b ->
+        peso
+
+      familia_color(color_a) == familia_color(color_b) ->
+        Float.round(peso * @factor_tonos_relacionados, 2)
+
+      true ->
+        0
+    end
+  end
+
+  defp puntos_campo(_campo, a, b, peso), do: if(iguales?(a, b), do: peso, else: 0)
+
+  defp categoria_tamano(valor) do
+    case normalizar(valor) do
+      value when value in ["pequeno", "pequena", "pequenito", "pequenita"] ->
+        "pequeno"
+
+      value when value in ["muy pequeno", "muy pequena", "diminuto", "diminuta"] ->
+        "muy_pequeno"
+
+      value when value in ["mediano", "mediana"] ->
+        "mediano"
+
+      value when value in ["grande", "grandecito", "grandecita"] ->
+        "grande"
+
+      value when value in ["muy grande", "gigante"] ->
+        "muy_grande"
+
+      _ ->
+        normalizar(valor)
+    end
+  end
+
+  defp categoria_color(valor), do: normalizar(valor)
+
+  defp familia_color(value) when value in ["cafe", "marron", "caramelo", "chocolate", "canela"],
+    do: "castano"
+
+  defp familia_color(value), do: value
+
+  defp normalizar(valor), do: Mascotas.normalizar_texto(valor)
 
   @doc "Busca parejas compatibles sin mutar reportes; ordena por puntaje descendente e ID."
   def buscar(reportes, id) when is_map(reportes) do

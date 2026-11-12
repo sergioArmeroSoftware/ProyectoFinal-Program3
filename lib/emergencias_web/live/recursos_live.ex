@@ -2,6 +2,8 @@ defmodule EmergenciasWeb.RecursosLive do
   @moduledoc "Pantalla para registrar, consultar y transferir inventario."
   use EmergenciasWeb, :live_view
 
+  alias EmergenciasWeb.AppShell
+
   @impl true
   def mount(_params, session, socket) do
     socket =
@@ -9,6 +11,8 @@ defmodule EmergenciasWeb.RecursosLive do
       |> assign(:session_id, Map.get(session, "session_id"))
       |> assign(:recursos, [])
       |> assign(:movimientos, [])
+      |> assign(:zonas, [])
+      |> assign(:ubicaciones, [])
       |> assign(:mensaje, nil)
       |> assign(:error, nil)
       |> assign(:filtros, %{})
@@ -107,20 +111,52 @@ defmodule EmergenciasWeb.RecursosLive do
       {:ok, recursos} ->
         case Emergencias.API.consultar(socket.assigns.session_id, {:movimientos, %{}}) do
           {:ok, movimientos} ->
-            assign(socket, recursos: recursos, movimientos: movimientos, error: nil)
+            case Emergencias.API.consultar(socket.assigns.session_id, :zonas) do
+              {:ok, zonas} ->
+                assign(socket,
+                  recursos: recursos,
+                  movimientos: movimientos,
+                  zonas: zonas,
+                  ubicaciones: ubicaciones(recursos),
+                  error: nil
+                )
+
+              {:error, motivo} ->
+                assign(socket,
+                  recursos: recursos,
+                  movimientos: movimientos,
+                  zonas: [],
+                  ubicaciones: ubicaciones(recursos),
+                  error: error_message(motivo)
+                )
+            end
 
           {:error, motivo} ->
             assign(socket, recursos: recursos, movimientos: [], error: error_message(motivo))
         end
 
       {:error, motivo} ->
-        assign(socket, recursos: [], movimientos: [], error: error_message(motivo))
+        assign(socket,
+          recursos: [],
+          movimientos: [],
+          ubicaciones: [],
+          error: error_message(motivo)
+        )
     end
   end
+
+  defp ubicaciones(recursos),
+    do:
+      recursos
+      |> Enum.map(& &1.ubicacion)
+      |> Enum.reject(&(&1 in [nil, ""]))
+      |> Enum.uniq()
+      |> Enum.sort()
 
   defp error_message(:sesion_invalida), do: "Inicia sesión para usar este módulo."
   defp error_message(:no_autorizado), do: "Tu rol o zona no permite esta acción."
   defp error_message(:datos_incompletos), do: "Completa los campos requeridos."
+  defp error_message(:codigo_invalido), do: "Usa el formato R-01: R, guion y dos dígitos."
   defp error_message(:cantidad_invalida), do: "La cantidad debe ser un entero positivo."
   defp error_message(:stock_insuficiente), do: "No hay inventario suficiente."
   defp error_message(:id_duplicado), do: "Ese código ya está registrado."
@@ -137,18 +173,17 @@ defmodule EmergenciasWeb.RecursosLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <main class="min-h-screen bg-slate-50 text-slate-900">
-      <header class="bg-slate-950 px-6 py-5 text-white">
-        <div class="mx-auto flex max-w-6xl items-center justify-between">
-          <a href="/" class="font-bold">Emergencias UQ</a>
-          <a href="/necesidades" class="text-sm text-orange-200 hover:text-white">Ir a necesidades</a>
-        </div>
-      </header>
-
-      <div class="mx-auto max-w-6xl space-y-8 px-6 py-10">
+    <AppShell.shell
+      title="Recursos"
+      current_path="/recursos"
+      current_user={@current_user}
+      csrf_token={@csrf_token}
+      flash={@flash}
+    >
+      <div class="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-10">
         <div>
           <p class="text-sm font-semibold uppercase tracking-widest text-orange-700">
-            Módulo de recursos
+            Gestión de inventario
           </p>
 
           <h1 class="mt-2 text-3xl font-bold">Inventario y transferencias</h1>
@@ -173,7 +208,15 @@ defmodule EmergenciasWeb.RecursosLive do
           <form :if={@session_id} phx-submit="registrar" class="mt-5 grid gap-4 md:grid-cols-3">
             <label class="grid gap-1 text-sm font-medium">
               Código
-              <input name="recurso[codigo]" required class="rounded-lg border border-slate-300 p-2" />
+              <input
+                name="recurso[codigo]"
+                placeholder="R-01"
+                pattern="R-[0-9]{2}"
+                title="Formato: R-01 (R, guion y dos dígitos)"
+                required
+                class="rounded-lg border border-slate-300 p-2"
+              />
+              <span class="text-xs font-normal text-slate-500">Formato: R-01 (R, guion y dos dígitos).</span>
             </label>
 
             <label class="grid gap-1 text-sm font-medium">
@@ -208,11 +251,16 @@ defmodule EmergenciasWeb.RecursosLive do
 
             <label class="grid gap-1 text-sm font-medium">
               Zona
-              <input
+              <select
                 name="recurso[zona_codigo]"
                 required
                 class="rounded-lg border border-slate-300 p-2"
-              />
+              >
+                <option value="">Selecciona una zona</option>
+                <option :for={zona <- @zonas} value={zona.codigo}>
+                  {zona.nombre} ({zona.codigo})
+                </option>
+              </select>
             </label>
 
             <label class="grid gap-1 text-sm font-medium md:col-span-2">
@@ -248,11 +296,19 @@ defmodule EmergenciasWeb.RecursosLive do
 
             <div :if={@session_id} class="flex flex-wrap items-end gap-3">
               <form phx-change="filtrar" class="grid gap-3 sm:grid-cols-4">
-                <input
+                <select
                   name="filtros[zona_codigo]"
-                  placeholder="Zona"
                   class="rounded-lg border border-slate-300 p-2 text-sm"
-                />
+                >
+                  <option value="">Todas las zonas</option>
+                  <option
+                    :for={zona <- @zonas}
+                    value={zona.codigo}
+                    selected={@filtros["zona_codigo"] == zona.codigo}
+                  >
+                    {zona.nombre} ({zona.codigo})
+                  </option>
+                </select>
                 <input
                   name="filtros[categoria]"
                   placeholder="Categoría"
@@ -336,11 +392,16 @@ defmodule EmergenciasWeb.RecursosLive do
             <form :if={@session_id} phx-submit="ingresar" class="mt-5 grid gap-3">
               <label class="grid gap-1 text-sm font-medium">
                 Código del recurso
-                <input
+                <select
                   name="ingreso[recurso_codigo]"
                   required
                   class="rounded-lg border border-slate-300 p-2"
-                />
+                >
+                  <option value="">Selecciona un recurso</option>
+                  <option :for={recurso <- @recursos} value={recurso.codigo}>
+                    {recurso.codigo} · {recurso.nombre}
+                  </option>
+                </select>
               </label>
 
               <label class="grid gap-1 text-sm font-medium">
@@ -370,29 +431,41 @@ defmodule EmergenciasWeb.RecursosLive do
             <form :if={@session_id} phx-submit="transferir" class="mt-5 grid gap-3">
               <label class="grid gap-1 text-sm font-medium">
                 Código del recurso
-                <input
+                <select
                   name="transferencia[recurso_codigo]"
                   required
                   class="rounded-lg border border-slate-300 p-2"
-                />
+                >
+                  <option value="">Selecciona un recurso</option>
+                  <option :for={recurso <- @recursos} value={recurso.codigo}>
+                    {recurso.codigo} · {recurso.nombre}
+                  </option>
+                </select>
               </label>
 
               <label class="grid gap-1 text-sm font-medium">
                 Origen
-                <input
+                <select
                   name="transferencia[origen]"
                   required
                   class="rounded-lg border border-slate-300 p-2"
-                />
+                >
+                  <option value="">Selecciona el origen</option>
+                  <option :for={ubicacion <- @ubicaciones} value={ubicacion}>{ubicacion}</option>
+                </select>
               </label>
 
               <label class="grid gap-1 text-sm font-medium">
                 Destino
                 <input
                   name="transferencia[destino]"
+                  list="ubicaciones-conocidas"
                   required
                   class="rounded-lg border border-slate-300 p-2"
                 />
+                <datalist id="ubicaciones-conocidas">
+                  <option :for={ubicacion <- @ubicaciones} value={ubicacion} />
+                </datalist>
               </label>
 
               <label class="grid gap-1 text-sm font-medium">
@@ -439,7 +512,7 @@ defmodule EmergenciasWeb.RecursosLive do
           </div>
         </section>
       </div>
-    </main>
+    </AppShell.shell>
     """
   end
 end

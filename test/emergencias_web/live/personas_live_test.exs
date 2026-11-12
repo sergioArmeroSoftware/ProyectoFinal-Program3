@@ -248,7 +248,7 @@ defmodule EmergenciasWeb.PersonasLiveTest do
     assert has_element?(vista, "nav a[href='/usuarios']", "Usuarios")
 
     vista
-    |> element("nav a[href='/personas']")
+    |> element("nav[aria-label='Navegación principal'] a[href='/personas']")
     |> render_click()
     |> follow_redirect(conn, "/personas")
   end
