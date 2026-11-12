@@ -69,6 +69,7 @@ defmodule EmergenciasWeb.PanelLive do
           <.nav_link href="/zonas" active={@seccion == :zonas}>Zonas y atención</.nav_link>
           <.nav_link href="/albergues" active={@seccion == :albergues}>Albergues</.nav_link>
           <.nav_link href="/personas" active={false}>Personas afectadas</.nav_link>
+          <.nav_link href="/mensajes" active={false}>Mensajes familiares</.nav_link>
         </nav>
         <main>
           <p class="text-sm font-semibold uppercase tracking-widest text-orange-700">

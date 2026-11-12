@@ -22,6 +22,7 @@ defmodule EmergenciasWeb.Router do
     live("/zonas", PanelLive, :zonas)
     live("/albergues", PanelLive, :albergues)
     live("/personas", PersonasLive, :index)
+    live("/mensajes", MensajesLive, :index)
     live("/necesidades", NecesidadesLive, :index)
     live("/recursos", RecursosLive, :index)
   end
