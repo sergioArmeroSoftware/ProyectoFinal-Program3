@@ -79,6 +79,7 @@ defmodule Emergencias.MixProject do
   defp aliases do
     [
       setup: ["deps.get", "assets.setup", "assets.build"],
+      "demo.seed": ["run --no-start priv/demo/seed.exs"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind emergencias", "esbuild emergencias"],
       "assets.deploy": [

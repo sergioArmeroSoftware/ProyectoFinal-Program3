@@ -1,6 +1,6 @@
 defmodule Emergencias.Sesiones do
   @moduledoc "Funciones puras que administran el ciclo de vida de sesiones."
-  alias Emergencias.{Estado, Usuarios}
+  alias Emergencias.{Codigos, Estado, Usuarios}
 
   @doc "Inicia sesión o registra como ciudadano una cuenta nueva y devuelve un identificador opaco."
   def conectar(%Estado{} = estado, attrs) when is_map(attrs) do
@@ -63,7 +63,8 @@ defmodule Emergencias.Sesiones do
   end
 
   defp registrar_y_conectar(estado, attrs) do
-    with {:ok, usuarios} <- Usuarios.registrar(estado.usuarios_por_username, attrs),
+    with :ok <- validar_zona(estado, attrs),
+         {:ok, usuarios} <- Usuarios.registrar(estado.usuarios_por_username, attrs),
          username when is_binary(username) <- valor(attrs, :username),
          username = String.trim(username),
          usuario when not is_nil(usuario) <- Map.get(usuarios, username) do
@@ -83,6 +84,17 @@ defmodule Emergencias.Sesiones do
   end
 
   defp valor(attrs, clave), do: Map.get(attrs, clave, Map.get(attrs, Atom.to_string(clave)))
+
+  defp validar_zona(estado, attrs) do
+    zona_codigo = attrs |> valor(:zona_principal) |> normalizar_usuario()
+
+    cond do
+      is_nil(zona_codigo) or zona_codigo == "" -> {:error, :zona_requerida}
+      not Codigos.valido?(:zona, zona_codigo) -> {:error, :codigo_invalido}
+      not Map.has_key?(estado.zonas_por_codigo, zona_codigo) -> {:error, :zona_no_encontrada}
+      true -> :ok
+    end
+  end
 
   defp normalizar_usuario(username) when is_binary(username), do: String.trim(username)
   defp normalizar_usuario(_username), do: nil
